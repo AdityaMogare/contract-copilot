@@ -277,7 +277,32 @@ step_12_appreg() {
       --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp_id/appRoleAssignedTo" \
       --body "{\"principalId\":\"$me\",\"resourceId\":\"$sp_id\",\"appRoleId\":\"00000000-0000-0000-0000-000000000000\"}" -o none
   fi
+  expose_api "$app_id"
   echo "APPREG_CLIENT_ID=$app_id" >&2
+}
+
+# Design 02 revision: the app validates Entra access tokens itself (Easy Auth is unavailable on
+# express environments). So the registration exposes an API scope, issues v2 tokens, and
+# pre-authorizes the Azure CLI so `az account get-access-token --scope api://<appId>/access_as_user`
+# works without a consent prompt.
+AZURE_CLI_APP_ID="04b07795-8ddb-461a-bbee-02f9e1bf7b46"   # Microsoft's well-known Azure CLI client
+expose_api() {
+  local app_id="$1" obj scope_id url
+  obj="$(az ad app show --id "$app_id" --query id -o tsv)"
+  url="https://graph.microsoft.com/v1.0/applications/$obj"
+  scope_id="$(az ad app show --id "$app_id" --query "api.oauth2PermissionScopes[?value=='access_as_user'].id | [0]" -o tsv)"
+  if [[ -z "$scope_id" ]]; then
+    scope_id="$(uuidgen | tr 'A-Z' 'a-z')"
+    run 12-expose-api az rest --method patch --url "$url" --body "{
+      \"identifierUris\": [\"api://$app_id\"],
+      \"api\": {\"requestedAccessTokenVersion\": 2, \"oauth2PermissionScopes\": [{
+        \"id\": \"$scope_id\", \"value\": \"access_as_user\", \"type\": \"User\", \"isEnabled\": true,
+        \"adminConsentDisplayName\": \"Call Contract Copilot\", \"adminConsentDescription\": \"Call the Contract Copilot API as the signed-in user\",
+        \"userConsentDisplayName\": \"Call Contract Copilot\", \"userConsentDescription\": \"Call the Contract Copilot API as you\"}]}}" -o none
+  fi
+  # Second PATCH: pre-authorization must reference a scope that already exists.
+  run 12-expose-api az rest --method patch --url "$url" --body "{\"api\": {\"preAuthorizedApplications\": [
+    {\"appId\": \"$AZURE_CLI_APP_ID\", \"delegatedPermissionIds\": [\"$scope_id\"]}]}}" -o none
 }
 
 # Step 13: the Container App + Easy Auth. Cost: consumption, min replicas 0 → inside the

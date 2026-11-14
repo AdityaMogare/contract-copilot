@@ -6,7 +6,7 @@ DefaultAzureCredential, so there's no key to configure (design 01 §6).
 
 from functools import lru_cache
 
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,19 @@ class Settings(BaseSettings):
     storage_container: str = "far-raw"
 
     smoke_timeout_s: float = 20.0
+
+    # Entra access-token validation (design 02 revision). Fail-closed: required unless the
+    # environment explicitly says otherwise (local .env sets AUTH_REQUIRED=false).
+    auth_required: bool = True
+    auth_tenant_id: str | None = None
+    auth_audience: str | None = None  # the app registration's appId (v2 tokens use it as `aud`)
+    auth_scope: str = "access_as_user"
+
+    @model_validator(mode="after")
+    def _auth_config_complete(self) -> "Settings":
+        if self.auth_required and not (self.auth_tenant_id and self.auth_audience):
+            raise ValueError("AUTH_REQUIRED=true needs AUTH_TENANT_ID and AUTH_AUDIENCE")
+        return self
 
 
 @lru_cache

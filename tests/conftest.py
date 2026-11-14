@@ -9,6 +9,7 @@ FAKE_ENV = {
     "KEY_VAULT_URL": "https://fake-kv.example.com/",
     "STORAGE_ACCOUNT_URL": "https://fake-st.example.com",
     "SMOKE_TIMEOUT_S": "0.2",
+    "AUTH_REQUIRED": "false",  # auth is fail-closed by default; tests/test_auth.py turns it on
 }
 
 
