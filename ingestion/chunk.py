@@ -93,10 +93,14 @@ def _fit(units: list[_Piece], budget: int) -> list[_Piece]:
 
 
 def _range(labels: list[str]) -> str:
-    uniq = list(dict.fromkeys(labels))
-    if not uniq:
-        return ""
-    return f"({uniq[0]})" if len(uniq) == 1 else f"({uniq[0]})–({uniq[-1]})"
+    """Labels → "(b)–(d)". A restart at (a) (a clause Alternate) starts a new run: "(v); (a)–(c)"."""
+    runs: list[list[str]] = []
+    for lab in labels:
+        if not runs or (lab == "a" and runs[-1][-1] != "a"):
+            runs.append([lab])
+        elif lab != runs[-1][-1]:
+            runs[-1].append(lab)
+    return "; ".join(f"({r[0]})" if len(r) == 1 else f"({r[0]})–({r[-1]})" for r in runs)
 
 
 def chunk_section(s: Section, hash_salt: str = "") -> list[Chunk]:
@@ -116,12 +120,15 @@ def chunk_section(s: Section, hash_salt: str = "") -> list[Chunk]:
         body = "\n".join(t for p in g for t in p.texts)
         content = f"{head}\n\n{body}"
         rng = _range([lab for p in g for lab in p.labels])
+        # Hash everything we write except the vector, so a metadata-only fix (e.g. a citation)
+        # still counts as "changed" and reaches the index.
+        meta = f"{rng}|{s.title}|{s.subpart}|{s.amended_on}"
         chunks.append(Chunk(
             id=f"{s.number.replace('.', '_')}--{i:03d}",
             section=s.number, part=s.part, subpart=s.subpart, section_title=s.title,
             paragraph_range=rng, citation=f"FAR {s.number}{rng}", url=s.url,
             content=content,
-            content_hash=hashlib.sha256(f"{hash_salt}\n{content}".encode()).hexdigest(),
+            content_hash=hashlib.sha256(f"{hash_salt}\n{meta}\n{content}".encode()).hexdigest(),
             amended_on=s.amended_on, tokens=count_tokens(content),
         ))
     return chunks

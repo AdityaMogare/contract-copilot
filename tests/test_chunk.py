@@ -54,3 +54,20 @@ def test_no_text_lost():
         for b in s.blocks:
             if count_tokens(b.text) < MAX_TOKENS // 2:
                 assert b.text in joined, (s.number, b.text[:60])
+
+
+def test_range_with_alternate_restart():
+    from ingestion.chunk import _range
+    assert _range(["b", "c", "d"]) == "(b)–(d)"
+    assert _range(["v", "a", "b"]) == "(v); (a)–(b)"
+    assert _range(["c", "c"]) == "(c)"          # pieces of one split paragraph
+    assert _range([]) == ""
+
+
+def test_metadata_change_changes_hash():
+    from dataclasses import replace
+    from datetime import date
+    s = BY["6.302-1"]
+    a = chunk_section(s)
+    b = chunk_section(replace(s, amended_on=date(2030, 1, 1)))
+    assert a[0].content == b[0].content and a[0].content_hash != b[0].content_hash
