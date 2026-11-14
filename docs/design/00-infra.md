@@ -48,13 +48,14 @@ _(Predictions skipped for this step by choice.)_
 | Cost | – | $0 for both. |
 
 ### Step 1 – Resource group `rg-contract-copilot`
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | A logical container and an RBAC/policy scope. Its `location` (eastus2) only stores the group's metadata; each resource picks its own region. Deleting it deletes everything inside it. |
+| ARM call | – | `PUT https://management.azure.com/subscriptions/{sub}/resourcegroups/rg-contract-copilot?api-version=2024-11-01`, body `{"location":"eastus2","tags":{...}}` → **201 Created**. Re-run → **200 OK**, because PUT is idempotent (create-or-update), so the script is safe to re-run. Synchronous, with no polling, unlike provider registration. Response headers: `x-ms-request-id` / `x-ms-correlation-request-id` (quote these to Azure support) and `x-ms-ratelimit-remaining-subscription-writes: 199` (ARM write throttle per subscription). |
+| Control-plane access | – | ARM token (aud `https://management.core.windows.net/`). Nobody was assigned on the RG itself; all access is **inherited** down the scope chain: root `/` → management group (USC tenant) → subscription → RG. Me: Owner (subscription). USC IT: User Access Administrator at root and management group (could grant themselves anything), Cost Management Contributor and Billing Reader, plus a third-party access tool (Britive) with Reader and Foundry User at the management group. **So "who can access my RG" includes university admins I never added.** |
+| Data-plane access | – | None. An RG has no data plane. |
+| Cost | – | $0 |
 
 ### Step 2 – Log Analytics `log-$SFX` + App Insights `appi-$SFX`
 | | Predicted | Observed |

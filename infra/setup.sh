@@ -85,6 +85,13 @@ JSON
     --body "$body" -o none
 }
 
+# Step 1: resource group. Costs $0. A logical container + RBAC/policy scope; deleting it
+# deletes everything inside. Its location only stores metadata; resources pick their own region.
+step_1_rg() {
+  run 01-rg az group create --name "$RG" --location "$LOCATION" \
+    --tags project=contract-copilot env=dev owner=aditya -o none
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"
