@@ -110,6 +110,16 @@ step_2_monitoring() {
     --kind web --application-type web --workspace "$law_id" -o none
 }
 
+# Step 3: Key Vault in RBAC mode (data-plane access via Azure role assignments, not vault
+# access policies). Cost: ~$0.03 per 10k secret operations; no monthly fee for Standard.
+# Soft delete is always on: a deleted vault holds its name for retention-days (7 = the minimum).
+# Purge protection left OFF for dev so the vault can be purged and the name reused.
+KV="kv-$SFX"
+step_3_keyvault() {
+  run 03-kv az keyvault create -g "$RG" -n "$KV" -l "$LOCATION" --sku standard \
+    --enable-rbac-authorization true --retention-days 7 -o none
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"

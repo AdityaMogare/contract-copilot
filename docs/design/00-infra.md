@@ -67,14 +67,15 @@ _(Predictions skipped.)_
 | Data-plane access | – | **Ingestion (app → App Insights):** connection string `InstrumentationKey=…;IngestionEndpoint=https://canadacentral-1.in.applicationinsights.azure.com/`. The ikey is an *identifier*, not a secret: anyone with it can send telemetry, but nobody can read data with it. Local auth is currently enabled (`disableLocalAuth: null`). To make ingestion Entra-only, set `DisableLocalAuth=true` and give the app identity *Monitoring Metrics Publisher* (later). **Query:** Entra token for `https://api.loganalytics.io`, role *Log Analytics Reader* (or Reader+) on the workspace. |
 | Cost | – | Pay per GB ingested, first 5 GB/month free. Daily cap 0.1 GB means at most ~3 GB/month, so ~$0. Retention 30 days is included. |
 
-### Step 3 – Key Vault `kv-$SFX`
+### Step 3 – Key Vault `kv-cczq9h` (canadacentral, RBAC mode)
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | A managed store for secrets, keys and certs. **RBAC mode**: data access is granted by Azure role assignments, not the legacy per-vault "access policies" (`accessPolicies: []`). Soft delete is always on: a deleted vault keeps its name reserved for 7 days. Purge protection is off (dev). |
+| ARM call | – | The CLI first sent `GET …/Microsoft.KeyVault/vaults/kv-cczq9h` → **404**, a client-side existence check (an `az` behaviour, not ARM). Then `PUT …/Microsoft.KeyVault/vaults/kv-cczq9h?api-version=2026-02-01`, body `{location, properties:{tenantId, sku:standard, accessPolicies:[], enableRbacAuthorization:true, softDeleteRetentionInDays:7, networkAcls:{defaultAction:Allow, bypass:AzureServices}}}` → **200**, then GET ×2 polling until provisioned. Note that `tenantId` is in the body: the vault trusts tokens from *one* Entra tenant only. |
+| Control-plane access | – | ARM token. Owner (me, inherited) can create, delete or configure the vault and **grant roles on it**, but that does not include reading secrets. |
+| Data-plane access | – | Endpoint `https://kv-cczq9h.vault.azure.net/`, token scope `https://vault.azure.net/.default`. **Test as Owner:** `GET /secrets?api-version=7.4` → (1) **401** with no token, plus `WWW-Authenticate: Bearer authorization="https://login.microsoftonline.com/{tenant}", resource="https://vault.azure.net"` (the challenge tells the client *which tenant* and *which audience* to get a token for) → (2) retry with a vault token → **403 Forbidden** "Caller is not authorized". **Owner is a control-plane role with no `dataActions`**, so step 8 must grant *Key Vault Secrets Officer* (me) and *Key Vault Secrets User* (app). |
+| Cost | – | Standard: no monthly fee, ~$0.03 per 10k operations. Effectively $0. |
 
 ### Step 4 – Storage `st$SFX`
 | | Predicted | Observed |
