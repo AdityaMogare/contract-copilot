@@ -23,5 +23,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | `chat` = gpt-5-mini; AI Services account in francecentral | Students sub has 0 quota for gpt-4.1-mini/gpt-4o-mini in all allowed regions; gpt-5-mini has 500K TPM GlobalStandard in francecentral. Cost: ~80-100 ms cross-region per LLM call. gpt-5-mini is a reasoning model (no temperature; reasoning tokens billed) |
 
 ## Next session
-- Finish 00-infra: rewrite Observed column in own words, 30-second explanation, break-it drills, quiz
+- 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
 - Draft docs/design/01-skeleton.md (/health + /smoke) before any app code
