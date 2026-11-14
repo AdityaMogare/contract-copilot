@@ -9,6 +9,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Infra steps 0-8 run with --debug and recorded in docs/design/00-infra.md (Postgres, ACR, Container Apps deferred)
 - [x] Repo skeleton + /health + /smoke (local; 4 unit tests pass; /smoke green against Azure: cold 3.6 s, warm 0.8 s)
 - [x] First deploy to Container Apps; /smoke green on live URL (app-level Entra JWT auth; express env)
+- [x] FAR ingestion: 4,065 clause-aware chunks in `far-chunks-v1` (17.49 MB of 50 MB), incremental re-run embeds 0
 
 ## Decisions
 | Date | Decision | Why |
@@ -24,9 +25,12 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | Deploy behind Entra sign-in (Easy Auth, assignment required), not IP restriction | Public URL spends tokens on our credit; Entra matches context.md's architecture and is the stronger interview story. Trade-off: only Aditya can sign in, so demos are done by him or by video |
 | 2026-11-14 | Entra JWT validation in FastAPI instead of Easy Auth | Our ACA environment is 'express', which rejects Easy Auth. App-level validation works on any host and needs no secret |
 | 2026-11-14 | App MI gets Reader on Search (in addition to Index Data Reader) | Listing index definitions is a control-plane action in Search |
+| 2026-11-14 | FAR from eCFR versioner API, fetched per part; 512-dim embeddings | `?chapter=1` is ignored; 512 dims keeps the Free-tier index at 35% of 50 MB |
+| 2026-11-14 | `embed` capacity 50K → 300K TPM | Per-token billing, so capacity is free; full ingest 27+ min → ~6 min |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
 - 01-skeleton open items: break-it drills, quiz, 30-second explanation
 - 02 open: cold-start measurement, logs → Log Analytics, break-it, quiz
-- Next feature: FAR parse + clause-aware chunking + index (design 03 first)
+- 03 open: break-it drills (1536-dim query, remove index-write role), quiz, 30-second explanation
+- Next feature: 04 RAG endpoint (design drafted, awaiting review)

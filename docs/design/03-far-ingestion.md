@@ -190,7 +190,29 @@ New deps: `httpx`, `defusedxml`, `tiktoken`.
 ---
 ## After building
 ### Trace vs prediction (what I got wrong)
--
+Trace: `uv run python -m ingestion.run --date 2026-10-28 --parts 6 --trace` → `infra/logs/03-trace-part6.log` (gitignored).
+
+| Predicted | Observed | Why it matters |
+|---|---|---|
+| Hops in order 1→10 | Order is: Search GET index (hop 5) first, then eCFR **full** (2) before **versions** (1), Blob PUT **201**, docs/search 200, embeddings 200, docs/index **200**, servicestats 200 | 200 not 207 because every doc succeeded; 207 only on partial failure |
+| Search `api-version=2024-07-01` | SDK 12.1 sends **`2026-10-01`** | The SDK pins the data-plane version, not us. Pin explicitly if a feature depends on it |
+| One token per scope | Credential chain: Environment (none) → ManagedIdentity probes IMDS `169.254.169.254` (fails on a laptop) → **AzureCliCredential**. **Two** `az` token calls for the Search scope | Each SDK client has its own token-cache policy; one shared credential ≠ one shared token cache |
+| ~4.7K chunks | **4,065** chunks, 3,267 sections, max 695 tokens. Parts 20, 21 → 404 (reserved) | Estimate assumed fixed 400-word splits; packing whole paragraphs to 700 tokens is denser |
+| Full run ≈ 5 min | First full run 358 s (3,349 embedded, 1.16M tokens); re-run 147 s with 0 embedded | eCFR fetch (~2.5 min for 51 parts × 2 calls) dominates, not embeddings |
+| Index stats readable after write | `GET /indexes/{n}/stats` stayed at 37 docs for **minutes** after 716 were written | Never gate on stats right after a write; poll until `documentCount` matches |
+| Vectors count toward 50 MB storage | `storageSize` (service) == index `storageSize`; **`vectorIndexSize` reported separately, quota `null`** on Free. Docs don't list a Free vector quota | The 50 MB gate applies to storageSize only: **17.49 MB actual** (projection from 716-doc sample: 17.5 MB) |
+| HNSW overhead 1–20% (docs) | vectorIndexSize ≈ **6.1 KB/chunk** vs 2 KB raw (512 × 4 B) ≈ 3× | Open: not explained by the documented overhead; watch it, don't guess |
+| Content hash ⇒ correct incremental updates | **Design bug:** hash covered content only, so a metadata fix (citation) would be skipped as "unchanged". Fixed: hash covers written metadata too | Found by probing, before it could ship a stale citation |
+| Citation ranges always ascending | `FAR 52.212-4(v)–(a)`: clause Alternates restart at (a). Now `(v); (a)–(b)` | |
+| Index name versioning via config switch | Free tier has an **aliases quota of 6**, so an alias can do the switch | Use an alias in feature 04 so the app never hard-codes `-v1` |
+
+**Sizing gate (§4):** passed. Measured on 716 chunks (parts 1–12), not Part 6 alone: 37 docs were too few
+(fixed overhead dominated). 4.31 KB storage per chunk → 17.5 MB projected → 17.49 MB actual (35% of 50 MB).
+
+**Probe observations (not metrics; scoring starts with the golden set in feature 04):**
+"sole source…" → 6.302-1(a) #1; "Certificate of Independent Price Determination" → 52.203-2 #1;
+"synopsis … on SAM" → 5.207/5.204 in top 5; "what is the simplified acquisition threshold" → **misses 2.101**
+(the definition): 2.101's 33 chunks each mix many definitions. Candidate for a measured retrieval fix.
 ### Break-it results (planned drills)
 - Query with 1536-dim vector against the 512-dim field → expect 400 from Search
 - Remove *Search Index Data Contributor* from Aditya → expect 403 at hop 6/8

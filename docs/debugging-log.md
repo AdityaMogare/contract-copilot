@@ -61,3 +61,15 @@ Format: symptom → where it showed up → root cause → fix.
 
 ## 2026-11-14 – Open: Container Apps logs not arriving in Log Analytics
 - Diagnostic setting `allLogs` → `log-cczq9h` exists (PUT 200), environment `appLogsConfiguration.destination = none` (express rejects azure-monitor). After ~10 min of traffic: `search * | where TimeGenerated > ago(3h)` returns **0 rows**. `az containerapp logs show` (live stream) works. Next: check again later (ingestion delay), then try `log-analytics` destination with the shared key stored in Key Vault, or rely on App Insights via OpenTelemetry (planned anyway).
+
+## 2026-11-14 – Search stats stuck at 37 docs after indexing 716
+- **Symptom:** `GET /indexes/far-chunks-v1/stats` and `/servicestats` reported 37 docs / 170 KB minutes after a run that wrote 716 docs (200 OK on every batch). `search *` with `$count` showed 716 immediately.
+- **Root cause:** statistics are computed asynchronously; queries see new docs right away, stats lag (here ~3 min).
+- **Fix:** poll stats until `documentCount` matches before using them for the sizing gate.
+
+## 2026-11-14 – Citation `FAR 52.212-4(v)–(a)` + hash that ignored metadata
+- **Symptom:** a probe returned a backwards paragraph range.
+- **Where:** `ingestion.probe "time-and-materials … commercial products"`, result #5.
+- **Root cause:** (1) clause Alternates restart paragraph labels at (a), and `_range` assumed one ascending run; (2) fixing it would not have reached the index because `content_hash` covered only `content`, so the changed citation looked "unchanged".
+- **Fix:** ranges rendered per run (`(v); (a)–(b)`); hash covers all written metadata. Tests for both. One full re-embed (~$0.03).
+- **Lesson:** an incremental-update key must cover *everything you write*, not just the expensive part.
