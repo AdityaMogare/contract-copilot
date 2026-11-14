@@ -32,3 +32,9 @@ Format: symptom → where it showed up → root cause → fix.
 - **Where:** curl against `https://ais-cczq9h.cognitiveservices.azure.com` right after step 8 (role PUT returned 201 at ~11:14).
 - **Root cause:** RBAC propagation is eventually consistent and cached per data-plane front end/operation. The role assignment was correct (verified with `az role assignment list --scope <ais id>`). Key Vault and Storage picked it up in under 1 min; embeddings took ~8 min (200 at 11:22).
 - **Fix:** none needed, just wait. Lessons: (1) in deploy pipelines, retry with backoff after granting roles; (2) a 401/403 right after a role change is not proof the role is wrong; check the assignment exists first, then wait.
+
+## 2026-11-14 – Container Apps env PUT → 400 `ExpressAzureMonitorLogDestNotSupported`
+- **Symptom:** "Azure Monitor Log Destination is not supported for environment 'cae-cczq9h' on express environments."
+- **Where:** `infra/logs/11-cae-400-azure-monitor.log`, response to `PUT …/Microsoft.App/managedEnvironments/cae-cczq9h`, body `appLogsConfiguration.destination: azure-monitor`.
+- **Root cause:** the platform created this as an "express" environment (decided server-side; nothing in the request or in `az containerapp env show` marks it as express), and express environments reject the azure-monitor destination. The error's doc link (aka.ms/aca/express) redirects to the portal, not to docs.
+- **Fix:** `--logs-destination none`, plus a diagnostic setting (`allLogs` → log-cczq9h) → PUT 200. **Open:** confirm logs actually arrive in the workspace once the app runs.

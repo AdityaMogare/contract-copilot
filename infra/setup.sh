@@ -231,6 +231,22 @@ step_10_acr() {
   assign 10-acr-roles "$app" ServicePrincipal "AcrPull" "$acr_id"
 }
 
+# Step 11: Container Apps environment. Consumption-only: no charge for the environment itself.
+# Wanted: --logs-destination azure-monitor (the default "log-analytics" needs the workspace SHARED
+# KEY in the ARM body). ARM rejected it: 400 ExpressAzureMonitorLogDestNotSupported ("not
+# supported ... on express environments"). So: destination none + a diagnostic setting into
+# log-$SFX. Whether logs actually flow with destination=none is verified after deploy.
+CAE="cae-$SFX"
+step_11_cae() {
+  run 11-cae az containerapp env create -g "$RG" -n "$CAE" -l "$LOCATION" \
+    --logs-destination none -o none
+  local cae_id law_id
+  cae_id="$(az containerapp env show -g "$RG" -n "$CAE" --query id -o tsv)"
+  law_id="$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query id -o tsv)"
+  run 11-cae-diag az monitor diagnostic-settings create -n to-log-analytics --resource "$cae_id" \
+    --workspace "$law_id" --logs '[{"categoryGroup":"allLogs","enabled":true}]' -o none
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"
