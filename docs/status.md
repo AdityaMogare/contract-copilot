@@ -4,7 +4,8 @@ Update at the end of every session: what changed, what's next, any decision and 
 
 ## Current status (2026-11-14)
 - [x] Azure account created
-- [ ] Budget alert ($30/mo) set
+- [x] Budget alert ($30/mo) set (step 0; alerts Owners at 80% actual, 100% forecast)
+- [x] Resource providers registered (step 0)
 - [ ] Infra setup (infra/setup.sh steps 1-7) run and recorded in docs/design/00-infra.md
 - [ ] Repo skeleton + /health + /smoke
 - [ ] First deploy to Container Apps; /smoke green on live URL

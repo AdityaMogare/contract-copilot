@@ -12,4 +12,9 @@ Format: symptom → where it showed up → root cause → fix.
 - **Symptom:** `Resource 'budget-contract-copilot' was disallowed by Azure ... without authenticating through MFA`.
 - **Where:** `infra/logs/00-budget.log`, response to `PUT .../Microsoft.Consumption/budgets/...`.
 - **Root cause:** Azure mandatory MFA for ARM write operations. The `az login` token had no MFA claim. ARM sent `WWW-Authenticate: error="insufficient_claims"` asking for `acrs=p1`. (Provider-register POSTs were not blocked.)
-- **Fix:** TBD. Re-authenticate with MFA, then re-run step 0.
+- **Fix:** `az logout` (to wipe the cached password-only access token), then
+  `az login --use-device-code --scope https://management.core.windows.net//.default --claims-challenge <base64 from WWW-Authenticate>`,
+  approve MFA. Verify with the token's `amr` claim: `["pwd","mfa"]`. Budget PUT → 201.
+- **Gotchas on the way:** (1) re-login *without* logout still used the cached 09:25 `pwd`-only
+  access token, so the call stayed at 401; (2) `AADSTS700171` = clicked Cancel on the device-code
+  "Are you trying to sign in to Azure CLI?" page.
