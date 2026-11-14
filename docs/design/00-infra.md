@@ -77,14 +77,15 @@ _(Predictions skipped.)_
 | Data-plane access | – | Endpoint `https://kv-cczq9h.vault.azure.net/`, token scope `https://vault.azure.net/.default`. **Test as Owner:** `GET /secrets?api-version=7.4` → (1) **401** with no token, plus `WWW-Authenticate: Bearer authorization="https://login.microsoftonline.com/{tenant}", resource="https://vault.azure.net"` (the challenge tells the client *which tenant* and *which audience* to get a token for) → (2) retry with a vault token → **403 Forbidden** "Caller is not authorized". **Owner is a control-plane role with no `dataActions`**, so step 8 must grant *Key Vault Secrets Officer* (me) and *Key Vault Secrets User* (app). |
 | Cost | – | Standard: no monthly fee, ~$0.03 per 10k operations. Effectively $0. |
 
-### Step 4 – Storage `st$SFX`
+### Step 4 – Storage `stcczq9h` (canadacentral) + containers `far-raw`, `contracts`
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | StorageV2 account, Standard_LRS (3 copies in one datacenter), Hot tier. It holds FAR source files and uploaded contract PDFs. Entra-only: `allowSharedKeyAccess:false`, `allowBlobPublicAccess:false`, TLS 1.2+, HTTPS only. |
+| ARM call | – | (1) `POST …/subscriptions/{sub}/providers/Microsoft.Storage/checkNameAvailability` → 200 (names are global DNS: `stcczq9h.blob.core.windows.net`). (2) `PUT …/Microsoft.Storage/storageAccounts/stcczq9h?api-version=2025-08-01`, body `{sku, kind, location, properties:{allowSharedKeyAccess:false, allowBlobPublicAccess:false, minimumTlsVersion:TLS1_2, …}}` → **202 Accepted**, with a `Location` header → `…/locations/canadacentral/asyncoperations/{id}?monitor=true` → poll: **202** (still running), then **200** (done). This is the classic **202 + Location** long-running-operation pattern (Log Analytics used 201 + Location). (3) Containers via ARM: `PUT …/storageAccounts/stcczq9h/blobServices/default/containers/far-raw` → **201** (×2). A container is also an ARM child resource, so it was created *without* any blob data role. |
+| Control-plane access | – | ARM token. Owner can still **list the account keys** (`POST …/listKeys`), but with shared key disabled those keys are useless. |
+| Data-plane access | – | Endpoint `https://stcczq9h.blob.core.windows.net`, token scope `https://storage.azure.com/.default`. **Entra token as Owner:** `GET /far-raw?restype=container&comp=list` → **403 `AuthorizationPermissionMismatch`** (valid token, no data role). **Account key:** → **`KeyBasedAuthenticationNotPermitted`**. So the *only* way in is Entra plus a data role: step 8 grants *Storage Blob Data Contributor* (me) and *Storage Blob Data Reader* (app). |
+| Cost | – | ~$0.02/GB-month (Hot LRS) plus fractions of a cent per 10k operations. ~$0 for MBs of FAR XML. |
 
 ### Step 5 – Managed identity `id-app-$SFX`
 | | Predicted | Observed |

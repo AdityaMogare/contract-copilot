@@ -120,6 +120,23 @@ step_3_keyvault() {
     --enable-rbac-authorization true --retention-days 7 -o none
 }
 
+# Step 4: Storage account for FAR source files and uploaded contract PDFs.
+# Cost: Standard_LRS hot ≈ $0.02/GB-month + per-operation; ~$0 while nearly empty.
+# Entra-only: shared-key (account keys / SAS signed with them) disabled, no anonymous blob access.
+ST="st$SFX"
+CONTAINERS=(far-raw contracts)
+step_4_storage() {
+  run 04-st az storage account create -g "$RG" -n "$ST" -l "$LOCATION" \
+    --sku Standard_LRS --kind StorageV2 --access-tier Hot \
+    --allow-blob-public-access false --allow-shared-key-access false \
+    --min-tls-version TLS1_2 --https-only true -o none
+  # container-rm = create containers through ARM (control plane), so it works before
+  # anyone has a blob data role. "az storage container create" would hit the data plane.
+  for c in "${CONTAINERS[@]}"; do
+    run 04-containers az storage container-rm create -g "$RG" --storage-account "$ST" -n "$c" -o none
+  done
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"
