@@ -18,3 +18,11 @@ Format: symptom → where it showed up → root cause → fix.
 - **Gotchas on the way:** (1) re-login *without* logout still used the cached 09:25 `pwd`-only
   access token, so the call stayed at 401; (2) `AADSTS700171` = clicked Cancel on the device-code
   "Are you trying to sign in to Azure CLI?" page.
+
+## 2026-11-14 – Log Analytics PUT → 403 `RequestDisallowedByAzure` (region)
+- **Symptom:** `Resource 'log-cczq9h' was disallowed by Azure: This policy maintains a set of best available regions...`
+- **Where:** `infra/logs/02-log-403-eastus2.log`, response to the workspace PUT. Note: same error *code* as the MFA block, different cause, so read the message.
+- **Root cause:** the Azure for Students subscription has the Azure Policy assignment "Allowed resource deployment regions":
+  belgiumcentral, canadacentral, denmarkeast, francecentral, norwayeast. eastus2 is not allowed. (Resource groups weren't blocked.)
+  Found with `az policy assignment list --disable-scope-strict-match`.
+- **Fix:** `LOCATION=canadacentral` in `infra/setup.sh` (closest to the US; checked that gpt-4.1-mini and text-embedding-3-small are GlobalStandard there). RG stays in eastus2 (metadata only).

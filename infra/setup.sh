@@ -9,7 +9,11 @@ set -euo pipefail
 # .env (gitignored) holds non-secret local settings like SFX. Never secrets: those go in Key Vault.
 ENV_FILE="$(cd "$(dirname "$0")/.." && pwd)/.env"
 [[ -f "$ENV_FILE" ]] && set -a && source "$ENV_FILE" && set +a
-LOCATION="eastus2"
+# Azure for Students policy "Allowed resource deployment regions" permits only:
+# belgiumcentral, canadacentral, denmarkeast, francecentral, norwayeast (eastus2 → 403).
+# canadacentral = closest to US users; gpt-4.1-mini + text-embedding-3-small available there.
+LOCATION="canadacentral"
+RG_LOCATION="eastus2"   # RG created before we hit the policy; RG location is metadata only
 RG="rg-contract-copilot"
 SFX="${SFX:?set SFX, a short unique suffix, e.g. SFX=ccp7x}"   # globally-unique names need it
 # Azure for Students: spending limit On = hard stop when credit runs out (docs/status.md).
@@ -88,8 +92,22 @@ JSON
 # Step 1: resource group. Costs $0. A logical container + RBAC/policy scope; deleting it
 # deletes everything inside. Its location only stores metadata; resources pick their own region.
 step_1_rg() {
-  run 01-rg az group create --name "$RG" --location "$LOCATION" \
+  run 01-rg az group create --name "$RG" --location "$RG_LOCATION" \
     --tags project=contract-copilot env=dev owner=aditya -o none
+}
+
+# Step 2: Log Analytics workspace + workspace-based Application Insights.
+# Cost: pay per GB ingested (first 5 GB/month free per billing account). The 0.1 GB/day cap
+# bounds it at ~3 GB/month, so it stays in the free tier even if something logs in a loop.
+LAW="log-$SFX"
+APPI="appi-$SFX"
+step_2_monitoring() {
+  run 02-log az monitor log-analytics workspace create -g "$RG" -n "$LAW" -l "$LOCATION" \
+    --sku PerGB2018 --retention-time 30 --quota 0.1 -o none
+  local law_id; law_id="$(az monitor log-analytics workspace show -g "$RG" -n "$LAW" --query id -o tsv)"
+  # Workspace-based: App Insights stores its telemetry IN the workspace above (classic mode is retired).
+  run 02-appi az monitor app-insights component create -g "$RG" --app "$APPI" -l "$LOCATION" \
+    --kind web --application-type web --workspace "$law_id" -o none
 }
 
 # ---- dispatch ---------------------------------------------------------------

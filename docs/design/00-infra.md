@@ -57,14 +57,15 @@ _(Predictions skipped.)_
 | Data-plane access | – | None. An RG has no data plane. |
 | Cost | – | $0 |
 
-### Step 2 – Log Analytics `log-$SFX` + App Insights `appi-$SFX`
+### Step 2 – Log Analytics `log-cczq9h` + App Insights `appi-cczq9h` (canadacentral)
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | **Log Analytics workspace:** the log store, queried with KQL. **App Insights:** the APM layer (requests, dependencies, traces, the spans from OpenTelemetry). It is *workspace-based*: it has no storage of its own and writes into the workspace (`IngestionMode: LogAnalytics`). |
+| ARM call | – | **First attempt (eastus2):** `PUT …/Microsoft.OperationalInsights/workspaces/log-cczq9h` → **403 `RequestDisallowedByAzure`**, blocked by the subscription policy "Allowed resource deployment regions". **Workspace:** `PUT …/Microsoft.OperationalInsights/workspaces/log-cczq9h?api-version=2025-02-01`, body `{location, sku:PerGB2018, retentionInDays:30, workspaceCapping:{dailyQuotaGb:0.1}}` → **201**, then **async**: the response's `Location` header pointed at `…/locations/canadacentral/operationstatuses/{id}`, which the CLI polled (GET ×2) until done. **App Insights:** `PUT …/Microsoft.Insights/components/appi-cczq9h?api-version=2020-02-02`, body includes `"WorkspaceResourceId": "<workspace ARM id>"`, so the link between them is one resource's ARM ID in the other's body → **200**, synchronous. |
+| Control-plane access | – | ARM token; inherited Owner (me) plus USC admins (see step 1). |
+| Data-plane access | – | **Ingestion (app → App Insights):** connection string `InstrumentationKey=…;IngestionEndpoint=https://canadacentral-1.in.applicationinsights.azure.com/`. The ikey is an *identifier*, not a secret: anyone with it can send telemetry, but nobody can read data with it. Local auth is currently enabled (`disableLocalAuth: null`). To make ingestion Entra-only, set `DisableLocalAuth=true` and give the app identity *Monitoring Metrics Publisher* (later). **Query:** Entra token for `https://api.loganalytics.io`, role *Log Analytics Reader* (or Reader+) on the workspace. |
+| Cost | – | Pay per GB ingested, first 5 GB/month free. Daily cap 0.1 GB means at most ~3 GB/month, so ~$0. Retention 30 days is included. |
 
 ### Step 3 – Key Vault `kv-$SFX`
 | | Predicted | Observed |

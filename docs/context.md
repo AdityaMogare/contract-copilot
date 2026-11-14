@@ -50,7 +50,7 @@ Output: Pydantic-validated answer + citations + confidence.
 dev/staging/prod, OIDC federated creds); golden set ~50 Qs scored with Foundry evaluators
 or Ragas.
 
-## Azure resources (single resource group `rg-contract-copilot`, region eastus2)
+## Azure resources (single resource group `rg-contract-copilot`; RG metadata in eastus2, resources in canadacentral, see status.md)
 | Resource | Name pattern | Notes |
 |---|---|---|
 | Log Analytics + App Insights | `log-$SFX`, `appi-$SFX` | workspace-based |
