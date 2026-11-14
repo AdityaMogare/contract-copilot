@@ -145,6 +145,30 @@ step_5_identity() {
   run 05-id az identity create -g "$RG" -n "$ID_APP" -l "$LOCATION" -o none
 }
 
+# Step 6: Azure AI Services (Foundry) account + model deployments `chat` and `embed`.
+# Region: francecentral, NOT $LOCATION. Students quota is 0 for gpt-4.1-mini/gpt-4o-mini in
+# every allowed region; gpt-5-mini has 500K TPM GlobalStandard quota in francecentral.
+# Cost: no monthly fee; pay per token (GlobalStandard). Capacity is in units of 1K TPM: kept low.
+# Entra-only: local (key) auth disabled after create. Custom subdomain is required for Entra tokens.
+AIS="ais-$SFX"
+AIS_LOCATION="francecentral"
+CHAT_MODEL="gpt-5-mini";             CHAT_VERSION="2025-08-07";  CHAT_TPM_K=50
+EMBED_MODEL="text-embedding-3-small"; EMBED_VERSION="1";         EMBED_TPM_K=50
+step_6_ai() {
+  run 06-ais az cognitiveservices account create -g "$RG" -n "$AIS" -l "$AIS_LOCATION" \
+    --kind AIServices --sku S0 --custom-domain "$AIS" --yes -o none
+  run 06-ais-localauth az resource update -g "$RG" -n "$AIS" \
+    --resource-type Microsoft.CognitiveServices/accounts --set properties.disableLocalAuth=true -o none
+  # Deployment NAMES (chat, embed) are what the app references (CLAUDE.md), never model names,
+  # so swapping the model behind `chat` needs no code change.
+  run 06-deploy-chat az cognitiveservices account deployment create -g "$RG" -n "$AIS" \
+    --deployment-name chat --model-format OpenAI --model-name "$CHAT_MODEL" \
+    --model-version "$CHAT_VERSION" --sku-name GlobalStandard --sku-capacity "$CHAT_TPM_K" -o none
+  run 06-deploy-embed az cognitiveservices account deployment create -g "$RG" -n "$AIS" \
+    --deployment-name embed --model-format OpenAI --model-name "$EMBED_MODEL" \
+    --model-version "$EMBED_VERSION" --sku-name GlobalStandard --sku-capacity "$EMBED_TPM_K" -o none
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"

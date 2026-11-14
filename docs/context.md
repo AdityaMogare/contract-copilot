@@ -56,7 +56,7 @@ or Ragas.
 | Log Analytics + App Insights | `log-$SFX`, `appi-$SFX` | workspace-based |
 | Key Vault | `kv-$SFX` | RBAC mode |
 | Storage | `st$SFX` | no public blob access |
-| AI Services (Foundry) | `ais-$SFX` | deployments `chat` (small model) and `embed` (text-embedding-3-small) |
+| AI Services (Foundry) | `ais-$SFX` | francecentral; deployments `chat` (gpt-5-mini) and `embed` (text-embedding-3-small) |
 | AI Search | `srch-$SFX` | Free tier to start (no semantic ranker); Basic ≈ $74/mo; check Serverless preview |
 | PostgreSQL Flexible | `pg-$SFX` | Burstable B1ms, PG16, db `copilot`, stop when idle |
 | Container Registry | `acr$SFX` | Basic |

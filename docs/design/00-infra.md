@@ -97,14 +97,15 @@ _(Predictions skipped.)_
 | Data-plane access | – | None of its own. It's a *principal*, not a resource with data. What it can reach is exactly the role assignments in step 8. |
 | Cost | – | Free. |
 
-### Step 6 – AI Services `ais-$SFX` + deployments `chat`, `embed`
+### Step 6 – AI Services `ais-cczq9h` (**francecentral**) + deployments `chat`, `embed`
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | A Foundry / AI Services account (`kind: AIServices`, S0): one endpoint that serves Azure OpenAI and other models. A **deployment** is a named, quota-bearing instance of a model inside it: `chat` → gpt-5-mini 2025-08-07, `embed` → text-embedding-3-small v1, both GlobalStandard, 50K TPM. The app references deployment names only. **Pre-check:** `az cognitiveservices usage list -l <region>` showed the Students subscription has **0 quota** for gpt-4.1-mini/gpt-4o-mini in every allowed region. gpt-5-mini has 500K TPM in francecentral and norwayeast, so the account lives in francecentral (the rest of the stack stays in canadacentral). |
+| ARM call | – | (1) `PUT …/Microsoft.CognitiveServices/accounts/ais-cczq9h?api-version=2026-09-15-preview`, body `{kind:AIServices, sku:S0, location:francecentral, properties:{customSubDomainName:ais-cczq9h}}` → **201**, then async poll `…/locations/francecentral/operationResults/{id}` (GET ×2). (2) Disable keys: `az resource update` = GET the resource, then **PUT the whole resource back** with `disableLocalAuth:true` → 200 + async poll. A generic update is read-modify-write, not PATCH. (3) `PUT …/accounts/ais-cczq9h/deployments/chat` → **201**; same for `…/deployments/embed` → **201**. Deployments are ARM child resources. |
+| Control-plane access | – | ARM token. Owner/Contributor (or *Cognitive Services Contributor*) can create the account and deployments and change TPM capacity. Listing keys is moot: local auth is off. |
+| Data-plane access | – | Endpoint `https://ais-cczq9h.cognitiveservices.azure.com/` (the custom subdomain is **required** for Entra tokens), scope `https://cognitiveservices.azure.com/.default`. **My token, no role:** `POST /openai/deployments/embed/embeddings?api-version=2024-10-21` → **401 `PermissionDenied`**: "lacks the required data action `Microsoft.CognitiveServices/accounts/OpenAI/deployments/embeddings/action`". The error names the exact `dataAction` a role must grant. **`api-key` header** → **401** (keys disabled). Step 8: *Cognitive Services OpenAI User* for me and the app. |
+| Cost | – | No monthly fee. Pay per token: gpt-5-mini ≈ $0.25 / 1M input, $2 / 1M output tokens; text-embedding-3-small ≈ $0.02 / 1M tokens (list prices, verify in the portal). Embedding the entire FAR ≈ a few cents. Reasoning models also bill hidden "reasoning tokens" as output. |
 
 ### Step 7 – AI Search `srch-$SFX` (Free)
 | | Predicted | Observed |
