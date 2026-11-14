@@ -137,6 +137,14 @@ step_4_storage() {
   done
 }
 
+# Step 5: user-assigned managed identity = the app's own Entra identity. Free.
+# User-assigned (not system-assigned) so it exists before the Container App does, roles can be
+# granted now (step 8), and it survives the app being deleted/recreated.
+ID_APP="id-app-$SFX"
+step_5_identity() {
+  run 05-id az identity create -g "$RG" -n "$ID_APP" -l "$LOCATION" -o none
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"

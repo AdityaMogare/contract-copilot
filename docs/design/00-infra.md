@@ -87,14 +87,15 @@ _(Predictions skipped.)_
 | Data-plane access | – | Endpoint `https://stcczq9h.blob.core.windows.net`, token scope `https://storage.azure.com/.default`. **Entra token as Owner:** `GET /far-raw?restype=container&comp=list` → **403 `AuthorizationPermissionMismatch`** (valid token, no data role). **Account key:** → **`KeyBasedAuthenticationNotPermitted`**. So the *only* way in is Entra plus a data role: step 8 grants *Storage Blob Data Contributor* (me) and *Storage Blob Data Reader* (app). |
 | Cost | – | ~$0.02/GB-month (Hot LRS) plus fractions of a cent per 10k operations. ~$0 for MBs of FAR XML. |
 
-### Step 5 – Managed identity `id-app-$SFX`
+### Step 5 – User-assigned managed identity `id-app-cczq9h`
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | The app's own identity. **One ARM call creates two objects:** an Azure resource (`Microsoft.ManagedIdentity/userAssignedIdentities`) *and* a service principal in Entra ID (`servicePrincipalType: ManagedIdentity`). There are no secrets: Azure rotates the credential internally, and code gets tokens from the host's identity endpoint (IMDS / Container Apps' identity endpoint) through `DefaultAzureCredential` → `ManagedIdentityCredential`. User-assigned, not system-assigned, because it exists before the app, can be granted roles now, and survives app re-creation. |
+| ARM call | – | `PUT …/Microsoft.ManagedIdentity/userAssignedIdentities/id-app-cczq9h?api-version=2025-05-31-preview`, body just `{"location":"canadacentral"}` → **201**, synchronous. The response gives three IDs: `principalId` c122c2ff-… (the **service principal's object ID**, what role assignments target), `clientId` 8e1e76a2-… (= the SP's **appId**, what code passes as `AZURE_CLIENT_ID` to choose *which* identity when a host has several), `tenantId`. |
+| Control-plane access | – | ARM: Owner/Contributor can create or delete it. *Managed Identity Operator* is needed to **attach** it to a compute resource (e.g. a Container App), which stops anyone who can deploy an app from borrowing any identity. Reading it in Entra used a **different token**: `GET https://graph.microsoft.com/v1.0/servicePrincipals/{principalId}` with scope `https://graph.microsoft.com/.default`. The first Graph read right after the create → **404 `Request_ResourceNotFound`**: Entra replication lag (seconds). A retry a few seconds later → 200. |
+| Data-plane access | – | None of its own. It's a *principal*, not a resource with data. What it can reach is exactly the role assignments in step 8. |
+| Cost | – | Free. |
 
 ### Step 6 – AI Services `ais-$SFX` + deployments `chat`, `embed`
 | | Predicted | Observed |
