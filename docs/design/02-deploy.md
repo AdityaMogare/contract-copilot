@@ -157,7 +157,20 @@ browser ─HTTPS─▶ ACA ingress ─▶ Easy Auth ─▶ container (FastAPI) �
 ---
 ## After building
 ### Trace vs prediction (what I got wrong)
--
+Live URL: `https://ca-copilot-cczq9h.yellowriver-20928f1c.canadacentral.azurecontainerapps.io` (image `bded039`).
+
+| | Design said | Reality |
+|---|---|---|
+| Environment type | regular consumption environment | **Express**, chosen server-side and invisible in `env show`. It rejected the azure-monitor log destination, Easy Auth, and revision restart ("use app Start and Stop instead") |
+| Sign-in | Easy Auth, 302 to Microsoft login | **App-level JWT validation** (revision above). Live: no token → **401** `missing bearer token`; ARM token → **401** `InvalidIssuerError` (v1 issuer `sts.windows.net`); our `api://…/access_as_user` token → passes |
+| Token for our API | not covered | `az account get-access-token --scope api://<appId>/access_as_user` → `AADSTS500011` "resource principal … not found" for ~1 min after exposing the API, although the SP already listed `api://…` in Graph (Entra replication again). Then a v2 token: `aud=<appId>`, `iss=…/{tid}/v2.0`, `scp=access_as_user`, `azp=04b07795…` (Azure CLI) |
+| Build on arm64 Mac | might need `az acr build` | `docker buildx --platform linux/amd64` worked locally (QEMU). Image 116 MB, runs as uid 10001 |
+| `az acr login` | Entra → ACR token exchange | Confirmed: `GET /v2/` → **401** (challenge) → `POST /{tid}/oauth2/v2.0/token` → `POST https://acrcczq9h.azurecr.io/oauth2/exchange` → 200 → Docker login |
+| Opening ingress | URL works right away | **502 "App is not available" for ~4.5 min** after `ingress enable`, while the replica was Running/Ready and only probe traffic (127.0.0.1) reached uvicorn. It then started working with no change: ingress propagation |
+| `/smoke` as the MI | all 5 green (same roles as local) | **search 403**. Locally it passed only because *my* token had Owner. Listing index definitions is a control-plane action; the MI had only *Search Index Data Reader*. Fixed by adding **Reader** on the search service → green at once |
+| Live `/smoke` latency | not predicted | warm request **0.98 s** total: chat 645 · embed 263 · keyvault 29 · search 11 · storage 8 ms. Faster than local for Azure-to-Azure hops (8–29 ms vs 86–278 ms locally) |
+| Logs in Log Analytics | via diagnostic setting | **No rows** in `log-cczq9h` ~10 min after traffic. `az containerapp logs show` works. **Open** |
+| Cold start (min replicas 0) | *target* < 15 s | **Not measured yet**: needs an idle period first |
 ### Break-it results
 -
 ### 30-second explanation

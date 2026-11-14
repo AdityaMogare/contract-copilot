@@ -46,3 +46,18 @@ Format: symptom → where it showed up → root cause → fix.
 - **Containment:** `az containerapp ingress disable` a few minutes after create → public URL now 404.
 - **Lesson:** never create a public endpoint and add its protection in a later step. Create it with ingress off, attach protection, *then* open ingress, so a failure leaves it closed.
 - **Fix:** pending a design decision (app-level Entra auth in FastAPI / IP restriction / non-express env).
+
+## 2026-11-14 – Live /smoke: search 403 for the managed identity (passed locally)
+- **Symptom:** `search ok=False HttpResponseError 403 Forbidden` on the deployed app; the other 4 checks green. The same code passed locally.
+- **Where:** live `/smoke` response, called with our API token.
+- **Root cause:** locally the call ran as *me* (Owner → has `Microsoft.Search/searchServices/indexes/read`). In Azure it runs as `id-app-cczq9h`, which only had *Search Index Data Reader* (document dataActions). Listing index definitions is a control-plane action in Search (the step 7 finding). **"Works on my machine" = works with my identity.**
+- **Fix:** step 8 adds *Reader* on the search service for the app MI (read-only; can't list admin keys). Green at the next call.
+- **Lesson:** test the app as its own identity before deploying (e.g. a local run with a service principal or a token for the MI). Owner hides missing roles.
+
+## 2026-11-14 – Public URL 502 "App is not available" for ~4.5 min after enabling ingress
+- **Symptom:** every path → 502 `{"error":"App is not available"}`; replica Running + Ready; console logs showed only probe requests from 127.0.0.1.
+- **Root cause:** ingress config propagation on the (express) environment. `revision restart` isn't supported on express (400). It resolved itself at ~4.5 min.
+- **Fix:** wait. In a pipeline: poll `/health` with backoff for several minutes after an ingress change before declaring failure.
+
+## 2026-11-14 – Open: Container Apps logs not arriving in Log Analytics
+- Diagnostic setting `allLogs` → `log-cczq9h` exists (PUT 200), environment `appLogsConfiguration.destination = none` (express rejects azure-monitor). After ~10 min of traffic: `search * | where TimeGenerated > ago(3h)` returns **0 rows**. `az containerapp logs show` (live stream) works. Next: check again later (ingestion delay), then try `log-analytics` destination with the shared key stored in Key Vault, or rely on App Insights via OpenTelemetry (planned anyway).

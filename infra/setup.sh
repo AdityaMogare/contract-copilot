@@ -205,6 +205,10 @@ step_8_roles() {
   assign 08-roles-app "$app" ServicePrincipal "Storage Blob Data Reader"        "$st"
   assign 08-roles-app "$app" ServicePrincipal "Cognitive Services OpenAI User"  "$ais"
   assign 08-roles-app "$app" ServicePrincipal "Search Index Data Reader"        "$srch"
+  # Index DEFINITIONS (list/get index schema) are control-plane actions in Search, not data
+  # actions (step 7 finding). /smoke's list_index_names → 403 for the MI without this.
+  # Reader is read-only on the service and can't call listAdminKeys (a POST action).
+  assign 08-roles-app "$app" ServicePrincipal "Reader"                          "$srch"
   # AcrPull: added when the container registry is created.
 
   # Me (local dev + ingestion): write access to data, plus Search index management.

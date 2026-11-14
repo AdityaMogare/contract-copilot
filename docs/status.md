@@ -8,7 +8,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Resource providers registered (step 0)
 - [x] Infra steps 0-8 run with --debug and recorded in docs/design/00-infra.md (Postgres, ACR, Container Apps deferred)
 - [x] Repo skeleton + /health + /smoke (local; 4 unit tests pass; /smoke green against Azure: cold 3.6 s, warm 0.8 s)
-- [ ] First deploy to Container Apps; /smoke green on live URL
+- [x] First deploy to Container Apps; /smoke green on live URL (app-level Entra JWT auth; express env)
 
 ## Decisions
 | Date | Decision | Why |
@@ -22,8 +22,11 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | Resources in canadacentral, not eastus2 | Students subscription policy allows only 5 regions; canadacentral is closest to the US and has gpt-4.1-mini + text-embedding-3-small (GlobalStandard). RG left in eastus2 (metadata only) |
 | 2026-11-14 | `chat` = gpt-5-mini; AI Services account in francecentral | Students sub has 0 quota for gpt-4.1-mini/gpt-4o-mini in all allowed regions; gpt-5-mini has 500K TPM GlobalStandard in francecentral. Cost: ~80-100 ms cross-region per LLM call. gpt-5-mini is a reasoning model (no temperature; reasoning tokens billed) |
 | 2026-11-14 | Deploy behind Entra sign-in (Easy Auth, assignment required), not IP restriction | Public URL spends tokens on our credit; Entra matches context.md's architecture and is the stronger interview story. Trade-off: only Aditya can sign in, so demos are done by him or by video |
+| 2026-11-14 | Entra JWT validation in FastAPI instead of Easy Auth | Our ACA environment is 'express', which rejects Easy Auth. App-level validation works on any host and needs no secret |
+| 2026-11-14 | App MI gets Reader on Search (in addition to Index Data Reader) | Listing index definitions is a control-plane action in Search |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
 - 01-skeleton open items: break-it drills, quiz, 30-second explanation
-- Next feature: 02 deploy (ACR + Container Apps + Entra sign-in); design first
+- 02 open: cold-start measurement, logs → Log Analytics, break-it, quiz
+- Next feature: FAR parse + clause-aware chunking + index (design 03 first)
