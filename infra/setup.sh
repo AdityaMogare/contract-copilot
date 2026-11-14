@@ -247,6 +247,39 @@ step_11_cae() {
     --workspace "$law_id" --logs '[{"categoryGroup":"allLogs","enabled":true}]' -o none
 }
 
+# Step 12: Entra app registration for sign-in (Microsoft Graph, not ARM). Free.
+# - single tenant, ID tokens on, redirect = Easy Auth callback on the app's FQDN
+# - NO client secret: Easy Auth then uses the ID-token flow (sign-in only, no downstream tokens)
+# - its service principal ("enterprise app") has appRoleAssignmentRequired=true and only I am
+#   assigned, so other USC users get an error from Entra instead of a token
+CA="ca-copilot-$SFX"
+APPREG="contract-copilot-web"
+ca_fqdn() { echo "$CA.$(az containerapp env show -g "$RG" -n "$CAE" --query properties.defaultDomain -o tsv)"; }
+step_12_appreg() {
+  local app_id sp_id me fqdn
+  fqdn="$(ca_fqdn)"
+  app_id="$(az ad app list --display-name "$APPREG" --query '[0].appId' -o tsv)"
+  if [[ -z "$app_id" ]]; then
+    app_id="$(run 12-appreg az ad app create --display-name "$APPREG" --sign-in-audience AzureADMyOrg \
+      --web-redirect-uris "https://$fqdn/.auth/login/aad/callback" --enable-id-token-issuance true \
+      --query appId -o tsv)"
+  else
+    echo "exists: app registration $APPREG" >&2
+  fi
+  sp_id="$(az ad sp list --filter "appId eq '$app_id'" --query '[0].id' -o tsv)"
+  [[ -n "$sp_id" ]] || sp_id="$(run 12-appreg az ad sp create --id "$app_id" --query id -o tsv)"
+  run 12-appreg az ad sp update --id "$sp_id" --set appRoleAssignmentRequired=true
+  me="$(az ad signed-in-user show --query id -o tsv)"
+  if [[ -z "$(az rest --method get --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp_id/appRoleAssignedTo" \
+        --query "value[?principalId=='$me'].id | [0]" -o tsv)" ]]; then
+    # appRoleId all-zeros = "default access" (the app defines no roles of its own)
+    run 12-appreg az rest --method post \
+      --url "https://graph.microsoft.com/v1.0/servicePrincipals/$sp_id/appRoleAssignedTo" \
+      --body "{\"principalId\":\"$me\",\"resourceId\":\"$sp_id\",\"appRoleId\":\"00000000-0000-0000-0000-000000000000\"}" -o none
+  fi
+  echo "APPREG_CLIENT_ID=$app_id" >&2
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"
