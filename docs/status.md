@@ -7,7 +7,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Budget alert ($30/mo) set (step 0; alerts Owners at 80% actual, 100% forecast)
 - [x] Resource providers registered (step 0)
 - [x] Infra steps 0-8 run with --debug and recorded in docs/design/00-infra.md (Postgres, ACR, Container Apps deferred)
-- [ ] Repo skeleton + /health + /smoke
+- [x] Repo skeleton + /health + /smoke (local; 4 unit tests pass; /smoke green against Azure: cold 3.6 s, warm 0.8 s)
 - [ ] First deploy to Container Apps; /smoke green on live URL
 
 ## Decisions
@@ -24,4 +24,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
-- Draft docs/design/01-skeleton.md (/health + /smoke) before any app code
+- 01-skeleton open items: break-it drills, quiz, 30-second explanation
+- Next feature: 02 deploy (ACR + Container Apps + Entra sign-in); design first

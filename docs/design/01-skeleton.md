@@ -144,7 +144,20 @@ with empty content, so the check passes on HTTP 200 + `finish_reason`, not on th
 ---
 ## After building
 ### Trace vs prediction (what I got wrong)
--
+Measured 2026-11-14, local run (macOS → canadacentral / francecentral), `az login` user with MFA.
+| | Design said | Measured |
+|---|---|---|
+| `/smoke` latency | *target* p95 < 10 s | **Cold 3.58 s, warm 0.83 s** (one sample each, not a p95) |
+| Per check, warm | chat is the slowest | chat 826 ms (gpt-5-mini, francecentral) · embed 329 · keyvault 278 · search 96 · storage 86 ms |
+| Per check, cold | not predicted | Every check ≈ +2 s. The token cache was empty, so each check walked the credential chain at the same time |
+| Credential chain locally | ends at AzureCliCredential | Confirmed: `EnvironmentCredential` "No environment configuration found" → `ManagedIdentityCredential` **probed IMDS** `GET http://169.254.169.254/metadata/identity/oauth2/token` (no such endpoint on a laptop, so it fails) → `DefaultAzureCredential acquired a token from AzureCliCredential`. The IMDS probe and the `az` subprocess are the cold-start cost. |
+| Token caching | cached per scope in the credential | Confirmed: a second embed call logged no identity activity |
+| Key Vault hop | 401 challenge, then retry with a token | Confirmed: `GET /secrets?api-version=2026-04-01` → **401** + `WWW-Authenticate: Bearer authorization=".../9ddaaca1-…", resource="https://vault.azure.net"` → token from the CLI → retry. The SDK used api-version **2026-04-01**, while the CLI in step 3 used **7.4**: same REST API, different client pinning. |
+| chat params | `max_completion_tokens: 64` + `reasoning_effort: minimal` might return empty text | `finish_reason=stop`: 64 tokens were enough |
+| Response's `model` | deployment name `chat` | `gpt-5-mini-2025-08-07`: the response reports the *model*, even though the request named the *deployment* |
+
+Follow-ups (not done): cold start could drop ~1–2 s by excluding ManagedIdentityCredential when
+running locally, or by warming tokens in `lifespan`. Only worth it if cold latency matters in Azure (min replicas = 0).
 ### Break-it results
 -
 ### 30-second explanation
