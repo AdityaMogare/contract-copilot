@@ -73,3 +73,10 @@ Format: symptom → where it showed up → root cause → fix.
 - **Root cause:** (1) clause Alternates restart paragraph labels at (a), and `_range` assumed one ascending run; (2) fixing it would not have reached the index because `content_hash` covered only `content`, so the changed citation looked "unchanged".
 - **Fix:** ranges rendered per run (`(v); (a)–(b)`); hash covers all written metadata. Tests for both. One full re-embed (~$0.03).
 - **Lesson:** an incremental-update key must cover *everything you write*, not just the expensive part.
+
+## 2026-11-14 – "Successful" full re-ingest that silently skipped Parts 52–53
+- **Symptom:** report said 4,025 chunks (expected 4,065), embedded + unchanged = 2,940 (≠ chunks), exit code 0. `FAR 52.212-4(v)–(a)` still in the index after the fix.
+- **Where:** `uv run python -m ingestion.run … 2>&1 | tail -12` output.
+- **Root cause:** the run crashed inside Part 52 (after chunking, before writing; Part 53 never ran). Two things hid it: (1) a pipeline's exit status is the **last** command's (`tail` → 0); (2) stdout is block-buffered in a pipe, so the JSON report printed in `finally` was flushed **after** the traceback, and `tail` kept the JSON and cut the traceback. Re-running Part 52 alone succeeded, so the error was transient (exact error lost to `tail`).
+- **Fix:** each part runs in its own try/except, failures go to `parts_failed` + stderr, the report is flushed, exit code 1 if any part failed. Use `set -o pipefail` when piping. Parts 52 and 53 re-ingested → 4,065 docs, citation now `FAR 52.212-4(v); (a)`.
+- **Lesson:** a batch job's report must count *failures*, not just work done; and never trust `$?` through a pipe.

@@ -27,6 +27,7 @@ class Report:
     snapshot: str
     parts: list[str] = field(default_factory=list)
     parts_missing: list[str] = field(default_factory=list)
+    parts_failed: dict[str, str] = field(default_factory=dict)   # part → error; run exits 1
     sections: int = 0
     chunks: int = 0
     embedded: int = 0
@@ -98,16 +99,18 @@ def main(argv=None) -> int:
     if not args.dry_run:
         io = AzureIO.build(settings)
         report.index_created = io.ensure_index()                              # hop 5
-    try:
-        with ecfr.make_client() as http:
-            for part in args.parts.split(","):
+    with ecfr.make_client() as http:
+        for part in args.parts.split(","):
+            try:
                 ingest_part(part.strip(), args.date, http, io, settings, report, args.dry_run)
-    finally:
-        if io:
-            report.index_storage_bytes = io.storage_bytes()                   # hop 10
-        report.seconds = round(time.perf_counter() - started, 1)
-        print(json.dumps(asdict(report), indent=2))
-    return 0
+            except Exception as e:  # one bad part must not hide or stop the rest
+                report.parts_failed[part.strip()] = f"{type(e).__name__}: {e}"[:500]
+                print(f"part {part.strip()}: FAILED {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+    if io:
+        report.index_storage_bytes = io.storage_bytes()                       # hop 10
+    report.seconds = round(time.perf_counter() - started, 1)
+    print(json.dumps(asdict(report), indent=2), flush=True)
+    return 1 if report.parts_failed else 0
 
 
 if __name__ == "__main__":

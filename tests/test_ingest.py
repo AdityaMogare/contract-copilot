@@ -92,3 +92,17 @@ def test_schema_vector_field():
     v = next(f for f in idx.fields if f.name == "content_vector")
     assert v.vector_search_dimensions == 512 and v.hidden is True
     assert next(f for f in idx.fields if f.name == "id").key is True
+
+
+def test_failed_part_is_reported_and_exit_code_is_1(monkeypatch, capsys):
+    def boom(http, snap, part):
+        if part == "6":
+            raise RuntimeError("search 503")
+        return XML
+    monkeypatch.setattr(ecfr, "fetch_part_xml", boom)
+    monkeypatch.setattr(run, "get_settings", lambda: SETTINGS)
+    code = run.main(["--date", "2026-10-28", "--parts", "6,7", "--dry-run"])
+    out = capsys.readouterr()
+    assert code == 1
+    assert '"6": "RuntimeError: search 503"' in out.out
+    assert "part 6: FAILED" in out.err
