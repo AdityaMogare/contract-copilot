@@ -1,0 +1,56 @@
+from pathlib import Path
+
+from ingestion.chunk import MAX_TOKENS, chunk_section, count_tokens
+from ingestion.parse import Block, Section, parse_part
+
+FIX = Path(__file__).parent / "fixtures"
+ALL = [s for f in ("part-6.xml", "edge-sections.xml") for s in parse_part((FIX / f).read_bytes())]
+BY = {s.number: s for s in ALL}
+
+
+def _sec(blocks, number="9.999"):
+    return Section(number, "Test section", "9", "Test Part", "9.9", "Test Subpart", blocks)
+
+
+def test_every_chunk_within_token_cap_and_has_header():
+    for s in ALL:
+        for c in chunk_section(s):
+            assert c.tokens <= MAX_TOKENS, (c.id, c.tokens)
+            assert c.content.startswith(f"FAR {s.number} {s.title}\nPart {s.part}")
+
+
+def test_6_302_1_splits_on_top_level_paragraphs():
+    cs = chunk_section(BY["6.302-1"])
+    assert [c.citation for c in cs] == ["FAR 6.302-1(a)", "FAR 6.302-1(b)–(c)", "FAR 6.302-1(d)"]
+    assert [c.id for c in cs] == ["6_302-1--000", "6_302-1--001", "6_302-1--002"]
+    assert "(b) Application." in cs[1].content and "(d)" not in cs[1].content.split("\n\n", 1)[1][:4]
+
+
+def test_small_section_is_one_chunk_with_lead_in():
+    cs = chunk_section(_sec([Block("Lead-in sentence."), Block("(a) Rule.", "a"), Block("(b) Exception.", "b")]))
+    assert len(cs) == 1
+    assert cs[0].paragraph_range == "(a)–(b)" and "Lead-in sentence." in cs[0].content
+
+
+def test_oversized_block_is_token_cut():
+    big = "word " * 3000
+    cs = chunk_section(_sec([Block("(a) " + big, "a")]))
+    assert len(cs) > 1 and all(c.tokens <= MAX_TOKENS for c in cs)
+    assert all(c.paragraph_range == "(a)" for c in cs)
+
+
+def test_ids_and_hashes_are_deterministic_and_salted():
+    a = chunk_section(BY["6.302-1"], hash_salt="embed|512")
+    b = chunk_section(BY["6.302-1"], hash_salt="embed|512")
+    c = chunk_section(BY["6.302-1"], hash_salt="embed|1536")
+    assert [x.id for x in a] == [x.id for x in b]
+    assert [x.content_hash for x in a] == [x.content_hash for x in b]
+    assert a[0].content_hash != c[0].content_hash      # changing dims forces a re-embed
+
+
+def test_no_text_lost():
+    for s in ALL:
+        joined = "\n".join(c.content.split("\n\n", 1)[1] for c in chunk_section(s))
+        for b in s.blocks:
+            if count_tokens(b.text) < MAX_TOKENS // 2:
+                assert b.text in joined, (s.number, b.text[:60])
