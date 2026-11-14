@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     embed_deployment: str = "embed"
 
     search_endpoint: AnyHttpUrl
+    # Versioned name: a schema change means a new index, then a config switch (design 03).
+    search_index: str = "far-chunks-v1"
+    # Must match at ingest AND query time, or Search rejects the vector (design 03 §4).
+    embed_dimensions: int = 512
     key_vault_url: AnyHttpUrl
     storage_account_url: AnyHttpUrl
     storage_container: str = "far-raw"
