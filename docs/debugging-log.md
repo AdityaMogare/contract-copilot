@@ -38,3 +38,11 @@ Format: symptom → where it showed up → root cause → fix.
 - **Where:** `infra/logs/11-cae-400-azure-monitor.log`, response to `PUT …/Microsoft.App/managedEnvironments/cae-cczq9h`, body `appLogsConfiguration.destination: azure-monitor`.
 - **Root cause:** the platform created this as an "express" environment (decided server-side; nothing in the request or in `az containerapp env show` marks it as express), and express environments reject the azure-monitor destination. The error's doc link (aka.ms/aca/express) redirects to the portal, not to docs.
 - **Fix:** `--logs-destination none`, plus a diagnostic setting (`allLogs` → log-cczq9h) → PUT 200. **Open:** confirm logs actually arrive in the workspace once the app runs.
+
+## 2026-11-14 – Easy Auth PUT → 400 `ExpressAuthConfigNotSupported` (app briefly public without sign-in)
+- **Symptom:** "Authentication (EasyAuth) is not supported for container app 'ca-copilot-cczq9h' on express environments."
+- **Where:** `infra/logs/13-auth.log`, `PUT …/containerApps/ca-copilot-cczq9h/authConfigs/current` → 400.
+- **Root cause:** same platform behaviour as step 11: our environment is "express", and express environments reject Easy Auth. The design assumed Easy Auth was available. The ordering in step 13 (create the app with external ingress → then add auth) meant that when auth failed, **the app was left public with no sign-in**.
+- **Containment:** `az containerapp ingress disable` a few minutes after create → public URL now 404.
+- **Lesson:** never create a public endpoint and add its protection in a later step. Create it with ingress off, attach protection, *then* open ingress, so a failure leaves it closed.
+- **Fix:** pending a design decision (app-level Entra auth in FastAPI / IP restriction / non-express env).
