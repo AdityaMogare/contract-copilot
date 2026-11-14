@@ -54,6 +54,7 @@ arm() {
 PROVIDERS=(
   Microsoft.Storage Microsoft.KeyVault Microsoft.CognitiveServices Microsoft.Search
   Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity
+  Microsoft.App Microsoft.ContainerRegistry   # added for feature 02 (deploy)
 )
 BUDGET_NAME="budget-contract-copilot"
 
@@ -212,6 +213,22 @@ step_8_roles() {
   assign 08-roles-me "$me" User "Cognitive Services OpenAI User"  "$ais"
   assign 08-roles-me "$me" User "Search Index Data Contributor"   "$srch"
   assign 08-roles-me "$me" User "Search Service Contributor"      "$srch"
+}
+
+# Step 9: PostgreSQL Flexible Server: deferred (bills while idle). Added with the first SQL feature.
+
+# Step 10: Azure Container Registry, Basic. COST: ~$0.167/day ≈ $5/month (the only fixed cost).
+# Admin user disabled: it's a static username/password. Pushes use my Entra token (az acr login),
+# pulls use the app's managed identity. Push/pull roles are data-plane roles, like Key Vault.
+ACR="acr$SFX"
+step_10_acr() {
+  run 10-acr az acr create -g "$RG" -n "$ACR" -l "$LOCATION" --sku Basic --admin-enabled false -o none
+  local me app acr_id
+  me="$(az ad signed-in-user show --query id -o tsv)"
+  app="$(az identity show -g "$RG" -n "$ID_APP" --query principalId -o tsv)"
+  acr_id="$(az acr show -g "$RG" -n "$ACR" --query id -o tsv)"
+  assign 10-acr-roles "$me"  User             "AcrPush" "$acr_id"
+  assign 10-acr-roles "$app" ServicePrincipal "AcrPull" "$acr_id"
 }
 
 # ---- dispatch ---------------------------------------------------------------
