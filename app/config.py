@@ -1,0 +1,32 @@
+"""Typed configuration. Values come from env vars, or from .env locally (gitignored).
+
+Nothing here is a secret: endpoints and deployment names only. Auth is Entra tokens via
+DefaultAzureCredential, so there's no key to configure (design 01 §6).
+"""
+
+from functools import lru_cache
+
+from pydantic import AnyHttpUrl
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    azure_openai_endpoint: AnyHttpUrl
+    # gpt-5-mini needs max_completion_tokens / reasoning_effort, which this version accepts.
+    azure_openai_api_version: str = "2025-04-01-preview"
+    chat_deployment: str = "chat"  # deployment NAMES, never model names (CLAUDE.md)
+    embed_deployment: str = "embed"
+
+    search_endpoint: AnyHttpUrl
+    key_vault_url: AnyHttpUrl
+    storage_account_url: AnyHttpUrl
+    storage_container: str = "far-raw"
+
+    smoke_timeout_s: float = 20.0
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()  # type: ignore[call-arg]  # required fields come from the environment

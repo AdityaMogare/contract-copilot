@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 infra/logs/
 .DS_Store
+!.env.example
