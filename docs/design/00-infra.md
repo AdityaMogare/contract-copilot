@@ -127,6 +127,9 @@ _(Predictions skipped.)_
 | Data-plane access | – | Re-ran the earlier failures as me: Key Vault `GET /secrets` 403 → **200**, Storage list blobs 403 → **200** (both within ~1 min). AI Services: **chat → 200 straight away, but embed stayed 401 `PermissionDenied` for ~8 min** (11:14 → 11:22) with the *same* role and the *same* token. RBAC is **eventually consistent per data-plane node/cache**, not per role. Search documents: unverified until an index exists. |
 | Cost | – | Free. Limit: 4,000 role assignments per subscription. |
 
+### Created implicitly (not by an explicit setup.sh command)
+- `Application Insights Smart Detection` (`microsoft.insights/actiongroups`, location global): auto-created by the App Insights PUT in step 2 for anomaly alerts. Free. Deleting the RG removes it.
+
 ### Not yet created
 - PostgreSQL Flexible `pg-$SFX`, ACR `acr$SFX`, Container Apps `cae-$SFX` / `ca-copilot-$SFX`
 
