@@ -154,7 +154,7 @@ step_5_identity() {
 AIS="ais-$SFX"
 AIS_LOCATION="francecentral"
 CHAT_MODEL="gpt-5-mini";             CHAT_VERSION="2025-08-07";  CHAT_TPM_K=50
-EMBED_MODEL="text-embedding-3-small"; EMBED_VERSION="1";         EMBED_TPM_K=50
+EMBED_MODEL="text-embedding-3-small"; EMBED_VERSION="1";         EMBED_TPM_K=300  # 50→300 for ingestion (design 03); per-token billing, capacity is only a rate limit
 step_6_ai() {
   run 06-ais az cognitiveservices account create -g "$RG" -n "$AIS" -l "$AIS_LOCATION" \
     --kind AIServices --sku S0 --custom-domain "$AIS" --yes -o none
@@ -166,6 +166,14 @@ step_6_ai() {
     --deployment-name chat --model-format OpenAI --model-name "$CHAT_MODEL" \
     --model-version "$CHAT_VERSION" --sku-name GlobalStandard --sku-capacity "$CHAT_TPM_K" -o none
   run 06-deploy-embed az cognitiveservices account deployment create -g "$RG" -n "$AIS" \
+    --deployment-name embed --model-format OpenAI --model-name "$EMBED_MODEL" \
+    --model-version "$EMBED_VERSION" --sku-name GlobalStandard --sku-capacity "$EMBED_TPM_K" -o none
+}
+
+# Step 6b: resize `embed` only (design 03). Same ARM PUT on .../deployments/embed as step 6;
+# PUT is idempotent, so re-sending it with a new sku.capacity updates the rate limit in place.
+step_6b_embed_capacity() {
+  run 06b-embed-capacity az cognitiveservices account deployment create -g "$RG" -n "$AIS" \
     --deployment-name embed --model-format OpenAI --model-name "$EMBED_MODEL" \
     --model-version "$EMBED_VERSION" --sku-name GlobalStandard --sku-capacity "$EMBED_TPM_K" -o none
 }
