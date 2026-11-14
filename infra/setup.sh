@@ -169,6 +169,15 @@ step_6_ai() {
     --model-version "$EMBED_VERSION" --sku-name GlobalStandard --sku-capacity "$EMBED_TPM_K" -o none
 }
 
+# Step 7: Azure AI Search, Free tier ($0; 1 per subscription, 50 MB, 3 indexes, no semantic
+# ranker, no SLA). aadOrApiKey turns ON Entra (RBAC) data-plane auth; by default Search is
+# key-only. http401WithBearerChallenge: a bad token gets a 401 + WWW-Authenticate challenge.
+SRCH="srch-$SFX"
+step_7_search() {
+  run 07-srch az search service create -g "$RG" -n "$SRCH" -l "$LOCATION" --sku free \
+    --auth-options aadOrApiKey --aad-auth-failure-mode http401WithBearerChallenge -o none
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"

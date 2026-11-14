@@ -107,14 +107,15 @@ _(Predictions skipped.)_
 | Data-plane access | – | Endpoint `https://ais-cczq9h.cognitiveservices.azure.com/` (the custom subdomain is **required** for Entra tokens), scope `https://cognitiveservices.azure.com/.default`. **My token, no role:** `POST /openai/deployments/embed/embeddings?api-version=2024-10-21` → **401 `PermissionDenied`**: "lacks the required data action `Microsoft.CognitiveServices/accounts/OpenAI/deployments/embeddings/action`". The error names the exact `dataAction` a role must grant. **`api-key` header** → **401** (keys disabled). Step 8: *Cognitive Services OpenAI User* for me and the app. |
 | Cost | – | No monthly fee. Pay per token: gpt-5-mini ≈ $0.25 / 1M input, $2 / 1M output tokens; text-embedding-3-small ≈ $0.02 / 1M tokens (list prices, verify in the portal). Embedding the entire FAR ≈ a few cents. Reasoning models also bill hidden "reasoning tokens" as output. |
 
-### Step 7 – AI Search `srch-$SFX` (Free)
+### Step 7 – AI Search `srch-cczq9h` (canadacentral, Free)
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | A search engine for keyword (BM25), vector and hybrid (RRF) retrieval over indexes we define. Free tier: 1 per subscription, 50 MB, 3 indexes, shared infrastructure, no SLA. ARM reports `semanticSearch: "free"`; whether the semantic ranker actually runs on the Free SKU is **unverified**, to be tested in the RAG feature. |
+| ARM call | – | `PUT …/Microsoft.Search/searchServices/srch-cczq9h?api-version=2026-03-01-preview`, body `{location, sku:{name:free}, properties:{replicaCount:1, partitionCount:1, authOptions:{aadOrApiKey:{aadAuthFailureMode:http401WithBearerChallenge}}}}` → **201**. No polling needed on Free (paid tiers provision for minutes). `authOptions` is the switch that **turns Entra on** for the data plane; Search defaults to keys only. |
+| Control-plane access | – | ARM token. Owner/Contributor/*Search Service Contributor* manage the service. Admin keys come from `POST …/listAdminKeys` (ARM), so anyone with that action can mint full data access. That's why the goal is `disableLocalAuth` once the app is on tokens. |
+| Data-plane access | – | Endpoint `https://srch-cczq9h.search.windows.net`, token scope `https://search.azure.com/.default`. **Surprise:** my Entra token with *no Search data role* → `GET /indexes?api-version=2024-07-01` → **200** `{"value":[]}`. Unlike Key Vault, Storage and AI Services, Search maps **index *definitions*** (create/list/delete index schema) to ordinary `actions` (`Microsoft.Search/searchServices/indexes/*`), which Owner has. **Documents** (query, upload) are `dataActions`, which need *Search Index Data Reader/Contributor*. To verify once an index exists: a doc query with no data role → 403. **Admin `api-key`** → 200 (keys still enabled under `aadOrApiKey`). |
+| Cost | – | $0 (Free). Basic ≈ $74/mo is the upgrade path (semantic ranker, SLA, 2 GB+). |
 
 ### Step 8 – Role assignments
 | | Predicted | Observed |
