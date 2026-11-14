@@ -6,6 +6,9 @@
 set -euo pipefail
 
 # ---- config -----------------------------------------------------------------
+# .env (gitignored) holds non-secret local settings like SFX. Never secrets: those go in Key Vault.
+ENV_FILE="$(cd "$(dirname "$0")/.." && pwd)/.env"
+[[ -f "$ENV_FILE" ]] && set -a && source "$ENV_FILE" && set +a
 LOCATION="eastus2"
 RG="rg-contract-copilot"
 SFX="${SFX:?set SFX, a short unique suffix, e.g. SFX=ccp7x}"   # globally-unique names need it
