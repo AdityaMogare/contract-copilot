@@ -305,9 +305,11 @@ expose_api() {
     {\"appId\": \"$AZURE_CLI_APP_ID\", \"delegatedPermissionIds\": [\"$scope_id\"]}]}}" -o none
 }
 
-# Step 13: the Container App + Easy Auth. Cost: consumption, min replicas 0 → inside the
-# monthly free grant. Identity: id-app-$SFX is used for BOTH the image pull and the app's own
-# Azure calls (AZURE_CLIENT_ID picks it inside DefaultAzureCredential).
+# Step 13: the Container App. Cost: consumption, min replicas 0 → inside the monthly free grant.
+# Identity: id-app-$SFX is used for BOTH the image pull and the app's own Azure calls
+# (AZURE_CLIENT_ID picks it inside DefaultAzureCredential).
+# FAIL-CLOSED ORDER (design 02 revision): create/update with ingress off → set auth env → probes →
+# verify AUTH_REQUIRED=true on the app → only then open external ingress.
 IMAGE_TAG="${IMAGE_TAG:-$(git -C "$(dirname "$0")/.." rev-parse --short HEAD)}"
 step_13_app() {
   local id_res id_client app_id tenant
@@ -315,39 +317,39 @@ step_13_app() {
   id_client="$(az identity show -g "$RG" -n "$ID_APP" --query clientId -o tsv)"
   app_id="$(az ad app list --display-name "$APPREG" --query '[0].appId' -o tsv)"
   tenant="$(az account show --query tenantId -o tsv)"
+  local env_vars=(
+    AZURE_CLIENT_ID="$id_client"
+    AZURE_OPENAI_ENDPOINT="https://$AIS.cognitiveservices.azure.com/"
+    AZURE_OPENAI_API_VERSION=2025-04-01-preview
+    CHAT_DEPLOYMENT=chat EMBED_DEPLOYMENT=embed
+    SEARCH_ENDPOINT="https://$SRCH.search.windows.net"
+    KEY_VAULT_URL="https://$KV.vault.azure.net/"
+    STORAGE_ACCOUNT_URL="https://$ST.blob.core.windows.net" STORAGE_CONTAINER=far-raw
+    SMOKE_TIMEOUT_S=20
+    AUTH_REQUIRED=true AUTH_TENANT_ID="$tenant" AUTH_AUDIENCE="$app_id"
+  )
 
   if ! az containerapp show -g "$RG" -n "$CA" -o none 2>/dev/null; then
     run 13-ca az containerapp create -g "$RG" -n "$CA" --environment "$CAE" \
       --image "$ACR.azurecr.io/copilot:$IMAGE_TAG" \
       --user-assigned "$id_res" --registry-server "$ACR.azurecr.io" --registry-identity "$id_res" \
-      --ingress internal --target-port 8000 \
       --min-replicas 0 --max-replicas 1 --cpu 0.25 --memory 0.5Gi \
-      --env-vars \
-        AZURE_CLIENT_ID="$id_client" \
-        AZURE_OPENAI_ENDPOINT="https://$AIS.cognitiveservices.azure.com/" \
-        AZURE_OPENAI_API_VERSION=2025-04-01-preview \
-        CHAT_DEPLOYMENT=chat EMBED_DEPLOYMENT=embed \
-        SEARCH_ENDPOINT="https://$SRCH.search.windows.net" \
-        KEY_VAULT_URL="https://$KV.vault.azure.net/" \
-        STORAGE_ACCOUNT_URL="https://$ST.blob.core.windows.net" STORAGE_CONTAINER=far-raw \
-        SMOKE_TIMEOUT_S=20 \
-      -o none
+      --env-vars "${env_vars[@]}" -o none
   else
-    echo "exists: container app $CA (use infra/deploy.sh to roll a new image)" >&2
+    run 13-ca az containerapp update -g "$RG" -n "$CA" --image "$ACR.azurecr.io/copilot:$IMAGE_TAG" \
+      --set-env-vars "${env_vars[@]}" -o none
   fi
 
-  # Probes on /health (design 01: never on /smoke). az containerapp create has no probe flags,
-  # so PATCH the container spec through ARM.
+  # Probes on /health (design 01: never on /smoke). az containerapp has no probe flags → PATCH via ARM.
   run 13-ca-probes python3 "$(dirname "$0")/patch_probes.py" "$RG" "$CA"
 
-  # BLOCKED: Easy Auth is rejected on express environments (400 ExpressAuthConfigNotSupported).
-  # Ingress was disabled after this failed; see docs/debugging-log.md. Pending a design decision.
-  return 0
-  # Easy Auth: Microsoft provider, our app registration, USC tenant, no client secret.
-  run 13-auth az containerapp auth microsoft update -g "$RG" -n "$CA" \
-    --client-id "$app_id" --issuer "https://login.microsoftonline.com/$tenant/v2.0" --yes -o none
-  run 13-auth az containerapp auth update -g "$RG" -n "$CA" --enabled true \
-    --unauthenticated-client-action RedirectToLoginPage --excluded-paths /health -o none
+  local auth_on
+  auth_on="$(az containerapp show -g "$RG" -n "$CA" \
+    --query "properties.template.containers[0].env[?name=='AUTH_REQUIRED'].value | [0]" -o tsv)"
+  [[ "$auth_on" == "true" ]] || { echo "REFUSING to open ingress: AUTH_REQUIRED=$auth_on" >&2; return 1; }
+  run 13-ingress az containerapp ingress enable -g "$RG" -n "$CA" --type external --target-port 8000 \
+    --transport auto -o none
+  echo "URL: https://$(az containerapp show -g "$RG" -n "$CA" --query properties.configuration.ingress.fqdn -o tsv)" >&2
 }
 
 # ---- dispatch ---------------------------------------------------------------
