@@ -7,6 +7,41 @@
 > **linux/arm64** (Apple silicon) with buildx available.
 > Done = `/smoke` returns 200 on the public URL after an Entra sign-in, using the managed identity.
 
+## ⚠️ Revision (2026-11-14, during build): Easy Auth → Entra token validation in FastAPI
+**What happened:** our environment came up as an ACA *express* environment, which rejects
+Easy Auth (`400 ExpressAuthConfigNotSupported`) and the azure-monitor log destination. See
+`docs/debugging-log.md`. Aditya chose app-level auth. **Everything below that mentions Easy
+Auth, the 302 redirect or `/.auth/*` is superseded by this section.**
+
+**New design**
+- The app registration `contract-copilot-web` also **exposes an API**: identifier URI
+  `api://<appId>`, delegated scope `access_as_user`, v2 access tokens. **Azure CLI is
+  pre-authorized** for that scope, so `az account get-access-token --scope api://<appId>/access_as_user`
+  works without a consent prompt. Assignment required stays on, so Entra refuses to issue the
+  token to anyone not assigned (AADSTS50105). That's the "only Aditya" control.
+- FastAPI dependency `require_user` on every route except `/health`. It checks the
+  `Authorization: Bearer` JWT: **signature** against the tenant's public keys
+  (`https://login.microsoftonline.com/{tid}/discovery/v2.0/keys`, cached), **issuer**
+  `https://login.microsoftonline.com/{tid}/v2.0`, **audience** = appId, **expiry**, and **scope**
+  `access_as_user` in `scp`. Failures: missing/invalid token → **401** + `WWW-Authenticate: Bearer`;
+  valid token without the scope → **403**.
+- *Why validate in the app, not trust the platform:* it works on any host (express ACA, local,
+  later anything else), there's no secret involved (validation uses *public* keys), and it's the
+  exact JWT-validation story interviewers probe.
+- Config: `AUTH_REQUIRED` (default **true**, fail-closed: the app refuses to start if it's true but
+  tenant/audience are missing), `AUTH_TENANT_ID`, `AUTH_AUDIENCE`. Locally `.env` sets `AUTH_REQUIRED=false`.
+- **Deploy order is fail-closed:** roll the auth-enabled revision with ingress off, verify, and only
+  then enable external ingress. (The first attempt created ingress first and auth second, which
+  left the app public when auth failed.)
+- Trade-off: no browser sign-in page. You call it with curl + a token. A browser UI is future work (MSAL in a frontend).
+
+**New request flow (replaces §5B steps 1–5)**
+1. Laptop: `az account get-access-token --scope api://<appId>/access_as_user` → the CLI asks Entra
+   (`POST /{tid}/oauth2/v2.0/token`, refresh-token grant) → Entra checks assignment → v2 access token, `aud=<appId>`, `scp=access_as_user`.
+2. `curl -H "Authorization: Bearer <token>" https://ca-copilot-…/smoke` → ACA ingress (TLS) → container.
+3. `require_user`: read the header → `kid` from the JWT header → public key from the cached JWKS → verify
+   signature, `iss`, `aud`, `exp`, `scp` → 401/403 or continue. (Then hops 6–8 of §5B are unchanged.)
+
 ## 1. Requirements
 **Functional**
 - The app from feature 01 runs as a container on Azure Container Apps (ACA) at an HTTPS URL.
