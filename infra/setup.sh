@@ -42,6 +42,49 @@ arm() {
 # ---- steps ------------------------------------------------------------------
 # (added one at a time, after predicting the ARM call in docs/design/00-infra.md)
 
+# Step 0: subscription-level prerequisites. Costs $0.
+#  - Register the resource providers steps 1-8 need. ARM refuses calls to an unregistered
+#    namespace (we saw it as a misleading "SubscriptionNotFound" from Microsoft.Storage).
+#  - $30/month cost budget with alerts to the subscription's Owners (contactRoles, so no
+#    email address ends up in git). A budget ALERTS; it never stops spending.
+PROVIDERS=(
+  Microsoft.Storage Microsoft.KeyVault Microsoft.CognitiveServices Microsoft.Search
+  Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity
+)
+BUDGET_NAME="budget-contract-copilot"
+
+step_0_budget() {
+  for p in "${PROVIDERS[@]}"; do
+    state="$(az provider show -n "$p" --query registrationState -o tsv)"
+    if [[ "$state" == "Registered" ]]; then echo "$p already registered" >&2; continue; fi
+    run 00-providers az provider register --namespace "$p" --wait
+  done
+
+  local start; start="$(date -u +%Y-%m-01)"
+  local body
+  body=$(cat <<JSON
+{
+  "properties": {
+    "category": "Cost",
+    "amount": 30,
+    "timeGrain": "Monthly",
+    "timePeriod": { "startDate": "${start}T00:00:00Z", "endDate": "2027-12-01T00:00:00Z" },
+    "notifications": {
+      "actual_80pct":    { "enabled": true, "operator": "GreaterThan", "threshold": 80,
+                           "thresholdType": "Actual",     "contactRoles": ["Owner"] },
+      "forecast_100pct": { "enabled": true, "operator": "GreaterThan", "threshold": 100,
+                           "thresholdType": "Forecasted", "contactRoles": ["Owner"] }
+    }
+  }
+}
+JSON
+)
+  # PUT is idempotent: re-running updates the same budget instead of creating a second one.
+  run 00-budget az rest --method put \
+    --url "https://management.azure.com/subscriptions/$SUB/providers/Microsoft.Consumption/budgets/$BUDGET_NAME?api-version=2023-05-01" \
+    --body "$body" -o none
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"

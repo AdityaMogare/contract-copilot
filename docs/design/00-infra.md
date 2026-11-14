@@ -38,13 +38,14 @@ What happens between typing `az <thing> create` and the resource existing?
 ## Resource ledger
 
 ### Step 0 – Provider registration + budget alert
+_(Predictions skipped for this step by choice.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call (method, URL, api-version, status) | | |
-| Control-plane access (who can manage it) | | |
-| Data-plane access (endpoint, token scope, role) | | |
-| Cost | | |
+| What it is | – | **Provider registration:** turns on a resource namespace (e.g. `Microsoft.Storage`) for *this subscription*. Before it, ARM rejects calls to that namespace; Storage answered with a misleading `SubscriptionNotFound`. **Budget:** a `Microsoft.Consumption/budgets` object at subscription scope that alerts and never stops spending. |
+| ARM call | – | **Register:** `POST https://management.azure.com/subscriptions/{sub}/providers/Microsoft.Storage/register?api-version=2024-11-01` → **200** (×7, one per namespace). `--wait` then polled `GET .../providers/{ns}` 45 times until `registrationState=Registered`, so registration is **async**. **Budget:** `PUT .../subscriptions/{sub}/providers/Microsoft.Consumption/budgets/budget-contract-copilot?api-version=2023-05-01` → **401 `RequestDisallowedByAzure`**, because ARM write blocked: token had no MFA claim. |
+| Control-plane access | – | Token audience `https://management.core.windows.net/` (ARM), issued by Entra for the signed-in user via MSAL. Register needs `*/register/action` on the subscription (Owner and Contributor both have it). Budget write needs Cost Management Contributor, Contributor or Owner. **Azure mandatory MFA:** user write ops on ARM need a token with `acrs=p1`. ARM returned `WWW-Authenticate: insufficient_claims` with claims `{"access_token":{"acrs":{"essential":true,"values":["p1"]}}}`. |
+| Data-plane access | – | None. Both are control-plane only. |
+| Cost | – | $0 for both. |
 
 ### Step 1 – Resource group `rg-contract-copilot`
 | | Predicted | Observed |
