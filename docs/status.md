@@ -6,7 +6,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Azure account created
 - [x] Budget alert ($30/mo) set (step 0; alerts Owners at 80% actual, 100% forecast)
 - [x] Resource providers registered (step 0)
-- [ ] Infra setup (infra/setup.sh steps 1-7) run and recorded in docs/design/00-infra.md
+- [x] Infra steps 0-8 run with --debug and recorded in docs/design/00-infra.md (Postgres, ACR, Container Apps deferred)
 - [ ] Repo skeleton + /health + /smoke
 - [ ] First deploy to Container Apps; /smoke green on live URL
 
@@ -23,4 +23,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | `chat` = gpt-5-mini; AI Services account in francecentral | Students sub has 0 quota for gpt-4.1-mini/gpt-4o-mini in all allowed regions; gpt-5-mini has 500K TPM GlobalStandard in francecentral. Cost: ~80-100 ms cross-region per LLM call. gpt-5-mini is a reasoning model (no temperature; reasoning tokens billed) |
 
 ## Next session
-- Run Step 0 (budget, CLI, provider registration), then infra steps with `--debug`
+- Finish 00-infra: rewrite Observed column in own words, 30-second explanation, break-it drills, quiz
+- Draft docs/design/01-skeleton.md (/health + /smoke) before any app code

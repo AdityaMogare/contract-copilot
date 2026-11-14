@@ -118,13 +118,14 @@ _(Predictions skipped.)_
 | Cost | – | $0 (Free). Basic ≈ $74/mo is the upgrade path (semantic ranker, SLA, 2 GB+). |
 
 ### Step 8 – Role assignments
+_(Predictions skipped.)_
 | | Predicted | Observed |
 |---|---|---|
-| What it is | | |
-| ARM call | | |
-| Control-plane access | | |
-| Data-plane access | | |
-| Cost | | |
+| What it is | – | A role assignment = **(principal, role definition, scope)**. It is itself an ARM resource (`Microsoft.Authorization/roleAssignments/{guid}`) that lives *under* the scope it applies to. Scoped per resource, not per RG (least privilege). **App identity:** Key Vault Secrets User, Storage Blob Data Reader, Cognitive Services OpenAI User, Search Index Data Reader (AcrPull later). **Me:** Key Vault Secrets Officer, Storage Blob Data Contributor, Cognitive Services OpenAI User, Search Index Data Contributor, Search Service Contributor. |
+| ARM call | – | My object ID via **Graph**: `az ad signed-in-user show` = `GET https://graph.microsoft.com/v1.0/me` (Graph token). Then 9× `PUT https://management.azure.com/{resource-id}/providers/Microsoft.Authorization/roleAssignments/{new-guid}?api-version=2022-04-01`, body `{"properties":{"principalType":"ServicePrincipal","principalId":"<oid>","roleDefinitionId":"/subscriptions/{sub}/providers/Microsoft.Authorization/roleDefinitions/4633458b-…"}}` → **201** each. The role is referenced by a **built-in GUID** (4633458b-… = Key Vault Secrets User), the same in every tenant. The client picks the assignment GUID, which makes the PUT idempotent. `--assignee-principal-type` skipped a Graph lookup, avoiding the step-5 replication race. |
+| Control-plane access | – | Creating assignments needs `Microsoft.Authorization/roleAssignments/write`: **Owner**, **User Access Administrator** or **Role Based Access Control Administrator**, *not* Contributor. So a Contributor can build everything except grant access. |
+| Data-plane access | – | Re-ran the earlier failures as me: Key Vault `GET /secrets` 403 → **200**, Storage list blobs 403 → **200** (both within ~1 min). AI Services: **chat → 200 straight away, but embed stayed 401 `PermissionDenied` for ~8 min** (11:14 → 11:22) with the *same* role and the *same* token. RBAC is **eventually consistent per data-plane node/cache**, not per role. Search documents: unverified until an index exists. |
+| Cost | – | Free. Limit: 4,000 role assignments per subscription. |
 
 ### Not yet created
 - PostgreSQL Flexible `pg-$SFX`, ACR `acr$SFX`, Container Apps `cae-$SFX` / `ca-copilot-$SFX`

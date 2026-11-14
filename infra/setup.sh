@@ -178,6 +178,42 @@ step_7_search() {
     --auth-options aadOrApiKey --aad-auth-failure-mode http401WithBearerChallenge -o none
 }
 
+# Step 8: role assignments (least privilege, scoped to each resource, not the RG). Free.
+# --assignee-object-id + --assignee-principal-type skips the Graph lookup, which avoids the
+# "principal not found" race right after an identity is created (Entra replication lag, step 5).
+assign() {  # assign <log-name> <principal-object-id> <User|ServicePrincipal> <role> <scope>
+  local log="$1" oid="$2" ptype="$3" role="$4" scope="$5"
+  if [[ -n "$(az role assignment list --assignee "$oid" --role "$role" --scope "$scope" --query '[0].id' -o tsv)" ]]; then
+    echo "exists: $role → ${scope##*/}" >&2; return
+  fi
+  run "$log" az role assignment create --assignee-object-id "$oid" --assignee-principal-type "$ptype" \
+    --role "$role" --scope "$scope" -o none
+}
+
+step_8_roles() {
+  local me app kv st ais srch
+  me="$(az ad signed-in-user show --query id -o tsv)"     # Graph: GET /v1.0/me
+  app="$(az identity show -g "$RG" -n "$ID_APP" --query principalId -o tsv)"
+  kv="$(az keyvault show -g "$RG" -n "$KV" --query id -o tsv)"
+  st="$(az storage account show -g "$RG" -n "$ST" --query id -o tsv)"
+  ais="$(az cognitiveservices account show -g "$RG" -n "$AIS" --query id -o tsv)"
+  srch="$(az search service show -g "$RG" -n "$SRCH" --query id -o tsv)"
+
+  # App identity: read-only on data, except what it must call.
+  assign 08-roles-app "$app" ServicePrincipal "Key Vault Secrets User"          "$kv"
+  assign 08-roles-app "$app" ServicePrincipal "Storage Blob Data Reader"        "$st"
+  assign 08-roles-app "$app" ServicePrincipal "Cognitive Services OpenAI User"  "$ais"
+  assign 08-roles-app "$app" ServicePrincipal "Search Index Data Reader"        "$srch"
+  # AcrPull: added when the container registry is created.
+
+  # Me (local dev + ingestion): write access to data, plus Search index management.
+  assign 08-roles-me "$me" User "Key Vault Secrets Officer"       "$kv"
+  assign 08-roles-me "$me" User "Storage Blob Data Contributor"   "$st"
+  assign 08-roles-me "$me" User "Cognitive Services OpenAI User"  "$ais"
+  assign 08-roles-me "$me" User "Search Index Data Contributor"   "$srch"
+  assign 08-roles-me "$me" User "Search Service Contributor"      "$srch"
+}
+
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
 fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"
