@@ -175,10 +175,47 @@ Config adds: `search_index` default → `far-chunks` (alias), `rag_top_k=8`, `ra
 
 ---
 ## After building
-### Golden-set baseline (measured)
--
+### Golden-set baseline (measured, 2026-11-14, no tuning)
+Report: `evals/reports/2026-11-14-baseline.md` (+ `.jsonl` with every answer). Config: alias `far-chunks`,
+top_k 8, reasoning_effort low, 512-dim embeddings, local run as Aditya.
+
+| Metric | Value |
+|---|---|
+| Retrieval hit@8 (answerable: an expected section among the 8 chunks) | **16/19 (84%)** |
+| Answered or partial (answerable) | 19/19 |
+| Fully answered (answerable) | 17/19 (89%) |
+| Citation hit (an expected section cited) | 16/19 (84%) |
+| False "I don't know" (answerable → not_found) | 0/19 |
+| Correct "I don't know" (unanswerable → not_found) | **6/6** |
+| Validation failures / retries | 0 / 0 |
+| Latency p50 / p95 (local, sequential) | 4.6 s / 7.2 s |
+| Avg prompt / completion tokens | 3,609 / 410 |
+
+**The three misses are retrieval, not hallucination:**
+- g06 SAT → 2.101 not retrieved; model said `partial` and refused to state a number it didn't have (it
+  did NOT fall back to a remembered threshold).
+- g10 "when is FFP appropriate?" → 16.202-2 not retrieved; answered **fully** from 36.207 (construction).
+  Root cause candidate: 16.202-2's own title is just "Application.", and our chunk header omits the
+  parent section title ("16.202 Firm-fixed-price contracts"). Also shows `answered` vs `partial` isn't calibrated.
+- g15 exceptions to certified cost or pricing data → 15.403-1 not retrieved (neighbours 15.403-2..5 were); `partial`.
+
+Tuning candidates for the before/after (not done here): parent-section title in the header (g10),
+per-definition chunks for 2.101 (g06), then semantic-style reranking or top_k.
+
 ### Trace vs prediction (what I got wrong)
--
+Local trace `e05b3f2c…` and live trace `03b60ad0…` in App Insights (`union requests, dependencies | where operation_Id == "<trace_id>"`).
+
+| Predicted | Observed | Why it matters |
+|---|---|---|
+| embed ~0.3 s, search 0.1–0.3 s, chat 2–4 s | Local: embed 1.14 s (≈0.3 s of it is token fetch), search 0.79 s, chat 2.69 s, total 4.6 s. Live first call: embed 1.54 s, search 0.24 s, **chat 7.57 s** (long tiered answer), total 9.5 s | Chat dominates and varies with answer length; reasoning tokens are part of it |
+| The distro doesn't instrument the OpenAI SDK (httpx) | It **does**: `POST /openai/deployments/{embed,chat}/…` spans appear under our manual spans | Manual spans still needed for token counts / finish reason |
+| MI token from IMDS `169.254.169.254` in ACA | In ACA the token comes from **`GET /msi/token` on `100.64.100.2`** (the Container Apps identity endpoint), 195 ms first scope, 49 ms second. Locally the IMDS probe fails (504) before AzureCliCredential | Same code, different credential in the chain; both visible as spans |
+| JWKS fetched per request? (design 02 said cached) | One `GET …/discovery/v2.0/keys` 115 ms on the first request, then none | `PyJWKClient` cache works |
+| Alias works with the API version we used in 03 | `PUT /aliases/…?api-version=2024-07-01` → **400 "version does not exist"**; `2026-10-01` → 201 | Aliases need a newer data-plane API version than our docs-era default |
+| A half-answerable question → boolean flag | Measured before design: boolean wrong; three-state status used | Eval: g06, g15 → `partial` as intended |
+| Tests are isolated from Azure | `telemetry.configure()` read the real conn string from `.env` during pytest (suite 1.1 → 2.2 s) | `OTEL_SDK_DISABLED=true` in conftest before importing the app |
+| `az resource update` = PATCH | It's **GET then PUT** of the whole component (seen in `02b-appi-entra.log`) | A concurrent change between GET and PUT would be overwritten |
+| 207 / retries under 50K TPM, sequential eval | 0 retries and 0 429s across 25 sequential questions (~3.6K prompt tokens each) | 50K TPM holds for one user; 10× would not (≈ 12 req/min) |
 ### Break-it results (planned drills)
 - Throttle: set `chat` capacity to 1K TPM → expect 429 → retries → 503 `chat` (then restore)
 - Ask a question whose answer is only in DFARS → expect `not_found`

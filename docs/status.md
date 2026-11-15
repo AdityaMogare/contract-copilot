@@ -10,6 +10,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Repo skeleton + /health + /smoke (local; 4 unit tests pass; /smoke green against Azure: cold 3.6 s, warm 0.8 s)
 - [x] First deploy to Container Apps; /smoke green on live URL (app-level Entra JWT auth; express env)
 - [x] FAR ingestion: 4,065 clause-aware chunks in `far-chunks-v1` (17.49 MB of 50 MB), incremental re-run embeds 0
+- [x] `POST /ask` live behind Entra auth; App Insights traces via MI + Entra; golden-set baseline: retrieval hit@8 16/19, correct IDK 6/6, false IDK 0/19
 
 ## Decisions
 | Date | Decision | Why |
@@ -27,10 +28,14 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | App MI gets Reader on Search (in addition to Index Data Reader) | Listing index definitions is a control-plane action in Search |
 | 2026-11-14 | FAR from eCFR versioner API, fetched per part; 512-dim embeddings | `?chapter=1` is ignored; 512 dims keeps the Free-tier index at 35% of 50 MB |
 | 2026-11-14 | `embed` capacity 50K → 300K TPM | Per-token billing, so capacity is free; full ingest 27+ min → ~6 min |
+| 2026-11-14 | Model cites by source number; server maps to citations | Citations can't be invented; validated in code |
+| 2026-11-14 | App Insights local auth off; MI + me get Monitoring Metrics Publisher | No keys: the connection string can't write telemetry by itself |
+| 2026-11-14 | App queries alias `far-chunks`; ingestion writes `far-chunks-v1` | Index rebuilds become an alias swap, not a redeploy |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
 - 01-skeleton open items: break-it drills, quiz, 30-second explanation
 - 02 open: cold-start measurement, logs → Log Analytics, break-it, quiz
 - 03 open: break-it drills (1536-dim query, remove index-write role), quiz, 30-second explanation
-- Next feature: 04 RAG endpoint (design drafted, awaiting review)
+- 04 open: Aditya reviews golden set; break-it drills (throttle chat, DFARS question, prompt injection); quiz; 30-second explanation
+- Next: retrieval tuning before/after on the golden set (parent-section title in header, 2.101 per-definition chunks), or Week 2 (USAspending → Postgres)

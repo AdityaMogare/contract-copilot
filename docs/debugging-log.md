@@ -80,3 +80,13 @@ Format: symptom → where it showed up → root cause → fix.
 - **Root cause:** the run crashed inside Part 52 (after chunking, before writing; Part 53 never ran). Two things hid it: (1) a pipeline's exit status is the **last** command's (`tail` → 0); (2) stdout is block-buffered in a pipe, so the JSON report printed in `finally` was flushed **after** the traceback, and `tail` kept the JSON and cut the traceback. Re-running Part 52 alone succeeded, so the error was transient (exact error lost to `tail`).
 - **Fix:** each part runs in its own try/except, failures go to `parts_failed` + stderr, the report is flushed, exit code 1 if any part failed. Use `set -o pipefail` when piping. Parts 52 and 53 re-ingested → 4,065 docs, citation now `FAR 52.212-4(v); (a)`.
 - **Lesson:** a batch job's report must count *failures*, not just work done; and never trust `$?` through a pipe.
+
+## 2026-11-14 – Search alias PUT → 400 "The version indicated by the api-version query string parameter does not exist."
+- **Where:** `infra/logs/07b-alias.log`, `PUT https://srch-cczq9h.search.windows.net/aliases/far-chunks?api-version=2024-07-01`.
+- **Root cause:** aliases aren't in the 2024-07-01 data-plane API; the error message says the *version* doesn't exist, though it exists for other paths.
+- **Fix:** `api-version=2026-10-01` (the version the Search SDK sends, seen in the 03 trace) → 201.
+
+## 2026-11-14 – Unit tests exporting telemetry to Azure
+- **Symptom:** `pytest` went from 1.1 s to 2.2 s after adding OpenTelemetry.
+- **Root cause:** `telemetry.configure()` runs at import of `app.main` and falls back to reading `.env` from the cwd; test modules import the app before the `client` fixture `chdir("/")`s.
+- **Fix:** `tests/conftest.py` sets `OTEL_SDK_DISABLED=true` before anything imports the app; `configure()` honors it. Verified: no tracer provider installed under tests.
