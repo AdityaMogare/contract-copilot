@@ -15,6 +15,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Award data (design 06): FY2025 Air Force contracts in Postgres (105,408 transactions, 56,832 awards); app reads as MI, read-only; live `/smoke` 6/6
 - [x] Public repo: https://github.com/AdityaMogare/contract-copilot
 - [x] Text-to-SQL (design 07): `POST /awards/query` live; SQL eval 54/60 runs correct (low effort), 15/15 not-answerable, 18/18 adversarial safe
+- [x] Agent (design 08): `POST /chat` with memory, rule-based competition check, human review queue; agent eval 32/34 (low), 0 invented PIIDs, 0 verdicts
 
 ## Decisions
 | Date | Decision | Why |
@@ -42,6 +43,9 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | Public GitHub repo; personal identifiers removed from tracked files, history kept | Portfolio + Week 3 CI needs GitHub; rewriting history would break SHA image tags |
 | 2026-11-15 | Text-to-SQL: 4 independent layers (prompt, whole-tree sqlglot allowlist, read-only txn as copilot_reader + 5 s, DB role) | Each alone stops a write; drills showed the timeout is the only layer that stops valid-but-expensive SQL |
 | 2026-11-15 | SQL reasoning_effort low, not minimal | Eval: 54/60 vs 46/60; the 6-question probe pointed the other way |
+| 2026-11-15 | Competition check = deterministic FAR-cited rules → review items; LLM only explains | Auditable, testable, never a legal verdict |
+| 2026-11-15 | One tool-calling agent with call (6) and time (30 s) budgets + forced final step | Probe: loops, empty answers at the cap; a 6-call turn hit the 45 s deadline |
+| 2026-11-15 | Memory + review queue in schema `agent`, second pool, same MI | Privileges keep award data unwritable; a second identity is the production answer |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
@@ -52,4 +56,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 - 05 open: decide u03 label (AFFARS question answered as grounded `partial`); delete `far-chunks-v1` once v2 is trusted (needs OK); quiz
 - 06 open: quiz; drill "remove the MI principal"; decide whether to add FY2024
 - 07 open: SQL prompt tuning needs a held-out SQL set first (NULL handling, total-vs-breakdown); quiz
-- Next: 08 LangGraph agent + competition check (design first)
+- 08 open: content-filter → `blocked` also for /ask and /awards/query; latency (4 sequential LLM calls ≈ 14.7 s): try merging the 'done' step with the final answer; Postgres stop/resume drill; quiz
+- Next: 10 guardrails (Content Safety prompt shields, PII masking, audit log) or 12 CI/CD eval gate
