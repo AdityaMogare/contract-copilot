@@ -38,8 +38,9 @@ class Settings(BaseSettings):
     pg_database: str = "copilot"
     pg_user: str | None = None
 
-    # Text-to-SQL (design 07). minimal: measured not worse than low and ~2x faster; the eval compares both.
-    sql_reasoning_effort: str = "minimal"
+    # Text-to-SQL (design 07). low: SQL eval 54/60 runs correct vs 46/60 for minimal (the 6-question probe had
+    # suggested the opposite); costs ~1.5 s more p50 (4.1 vs 2.7 s).
+    sql_reasoning_effort: str = "low"
     sql_max_completion_tokens: int = 3000
     sql_timeout_s: float = 5.0
     sql_deadline_s: float = 30.0
