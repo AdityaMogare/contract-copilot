@@ -18,6 +18,7 @@ dependencies = [
     "pydantic>=2.14.3",
     "pydantic-settings>=2.16.3",
     "pyjwt[crypto]>=2.15.1",
+    "sqlglot>=30.31.0",
     "tiktoken>=0.14.0",
     "uvicorn[standard]>=0.54.0",
 ]
