@@ -17,9 +17,13 @@ from app.config import Settings
 
 PG_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 SESSION_OPTS = "-c default_transaction_read_only=on -c statement_timeout=5000"
+# Design 08: the agent schema (checkpoints, review queue). Read-write for THIS pool only; the identity still has
+# no write privilege on award data, so "read-write" here can only reach agent.* (privileges, not defaults, decide).
+AGENT_OPTS = "-c default_transaction_read_only=off -c search_path=agent -c statement_timeout=5000"
 
 
-def make_pool(settings: Settings, credential: DefaultAzureCredential) -> AsyncConnectionPool | None:
+def make_pool(settings: Settings, credential: DefaultAzureCredential, options: str = SESSION_OPTS,
+              extra: dict | None = None) -> AsyncConnectionPool | None:
     if not (settings.pg_host and settings.pg_user):
         return None
 
@@ -32,7 +36,7 @@ def make_pool(settings: Settings, credential: DefaultAzureCredential) -> AsyncCo
     return AsyncConnectionPool(
         conninfo="",
         kwargs={"host": settings.pg_host, "dbname": settings.pg_database, "user": settings.pg_user,
-                "sslmode": "require", "connect_timeout": 10, "options": SESSION_OPTS},
+                "sslmode": "require", "connect_timeout": 10, "options": options, **(extra or {})},
         connection_class=EntraConnection,
         min_size=0, max_size=4, max_lifetime=1800, timeout=15, open=False,
     )

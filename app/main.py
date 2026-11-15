@@ -11,15 +11,16 @@ from fastapi import Depends, FastAPI  # noqa: E402
 from app.auth import require_user
 from app.clients import build_clients, close_clients
 from app.config import get_settings
-from app.routers import ask, awards, health, smoke
+from app.routers import ask, awards, health, reviews, smoke
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Create the credential + clients once; close them on shutdown (design 01 §6).
     app.state.clients = build_clients(get_settings())
-    if app.state.clients.pg is not None:
-        await app.state.clients.pg.open(wait=False)   # min_size=0: opens no connection until first use
+    for pool in (app.state.clients.pg, app.state.clients.pg_agent):
+        if pool is not None:
+            await pool.open(wait=False)   # min_size=0: opens no connection until first use
     try:
         yield
     finally:
@@ -31,3 +32,4 @@ app.include_router(health.router)  # public: liveness probe, no external calls
 app.include_router(smoke.router, dependencies=[Depends(require_user)])  # Entra token required
 app.include_router(ask.router, dependencies=[Depends(require_user)])
 app.include_router(awards.router, dependencies=[Depends(require_user)])
+app.include_router(reviews.router, dependencies=[Depends(require_user)])

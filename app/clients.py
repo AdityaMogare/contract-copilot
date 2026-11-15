@@ -15,7 +15,9 @@ from azure.storage.blob.aio import BlobServiceClient
 from openai import AsyncAzureOpenAI
 
 from app.config import Settings
-from app.db import make_pool
+from psycopg.rows import dict_row
+
+from app.db import AGENT_OPTS, make_pool
 
 COGNITIVE_SCOPE = "https://cognitiveservices.azure.com/.default"
 
@@ -30,6 +32,7 @@ class Clients:
     keyvault: SecretClient
     blob: BlobServiceClient
     pg: object | None = None      # AsyncConnectionPool (design 06); None if Postgres isn't configured
+    pg_agent: object | None = None  # design 08: schema agent, read-write; LangGraph needs autocommit + dict rows
 
 
 def build_clients(settings: Settings) -> Clients:
@@ -39,6 +42,7 @@ def build_clients(settings: Settings) -> Clients:
     return Clients(
         credential=credential,
         pg=make_pool(settings, credential),
+        pg_agent=make_pool(settings, credential, AGENT_OPTS, {"autocommit": True, "row_factory": dict_row}),
         openai=AsyncAzureOpenAI(
             azure_endpoint=str(settings.azure_openai_endpoint),
             api_version=settings.azure_openai_api_version,
@@ -66,6 +70,7 @@ async def close_clients(clients: Clients) -> None:
     await clients.openai_rag.close()
     await clients.keyvault.close()
     await clients.blob.close()
-    if clients.pg is not None:
-        await clients.pg.close()
+    for pool in (clients.pg, clients.pg_agent):
+        if pool is not None:
+            await pool.close()
     await clients.credential.close()
