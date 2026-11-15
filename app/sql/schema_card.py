@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import asyncio
 
+from opentelemetry import trace
+
 from app.sql.validate import ALLOWED_TABLES
 
 MAX_VALUES = 20
+tracer = trace.get_tracer(__name__)
 _lock = asyncio.Lock()
 _card: str | None = None
 
@@ -59,8 +62,13 @@ async def get(pool) -> str:
     if _card is None:
         async with _lock:
             if _card is None:
-                async with pool.connection() as conn:
-                    _card = await build(conn)
+                # First request after a deploy: opens a pooled connection (MI token for the ossrdbms scope)
+                # and runs ~30 DISTINCT queries. psycopg isn't auto-instrumented, so this span makes the
+                # ~1.3 s visible in the trace (seen as an unexplained gap on the first live call).
+                with tracer.start_as_current_span("schema_card.build") as span:
+                    async with pool.connection() as conn:
+                        _card = await build(conn)
+                    span.set_attribute("schema_card.chars", len(_card))
     return _card
 
 
