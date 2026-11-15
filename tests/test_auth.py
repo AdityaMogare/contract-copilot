@@ -127,3 +127,7 @@ def test_awards_query_requires_token(authed_client):
 def test_reviews_require_token(authed_client):
     assert authed_client.get("/reviews").status_code == 401
     assert authed_client.post("/awards/FA1/competition-check").status_code == 401
+
+
+def test_chat_requires_token(authed_client):
+    assert authed_client.post("/chat", json={"message": "x"}).status_code == 401

@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     sql_timeout_s: float = 5.0
     sql_deadline_s: float = 30.0
 
+    # Agent (design 08). Effort decided by the agent eval (minimal vs low); the final formatting step is minimal.
+    agent_reasoning_effort: str = "minimal"
+    agent_final_reasoning_effort: str = "minimal"
+    agent_max_completion_tokens: int = 4000
+    agent_tool_budget: int = 6
+    agent_deadline_s: float = 45.0
+    agent_time_budget_s: float = 30.0   # stop calling tools after this; the final step still answers
+
     # RAG (design 04). Starting values for the baseline, not tuned ones.
     rag_top_k: int = 8
     # RRF weight of the vector query vs BM25 (1.0 = equal). Design 05: 3.0 won on dev (hit@8 16→19/19).

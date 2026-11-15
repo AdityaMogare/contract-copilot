@@ -32,6 +32,7 @@ class Clients:
     keyvault: SecretClient
     blob: BlobServiceClient
     pg: object | None = None      # AsyncConnectionPool (design 06); None if Postgres isn't configured
+    token_provider: object | None = None  # async bearer provider for the cognitiveservices scope (agent LLM)
     pg_agent: object | None = None  # design 08: schema agent, read-write; LangGraph needs autocommit + dict rows
 
 
@@ -39,8 +40,10 @@ def build_clients(settings: Settings) -> Clients:
     # Locally: resolves to AzureCliCredential (your az login). In Container Apps:
     # ManagedIdentityCredential, picking the identity from AZURE_CLIENT_ID.
     credential = DefaultAzureCredential()
+    token_provider = get_bearer_token_provider(credential, COGNITIVE_SCOPE)
     return Clients(
         credential=credential,
+        token_provider=token_provider,
         pg=make_pool(settings, credential),
         pg_agent=make_pool(settings, credential, AGENT_OPTS, {"autocommit": True, "row_factory": dict_row}),
         openai=AsyncAzureOpenAI(

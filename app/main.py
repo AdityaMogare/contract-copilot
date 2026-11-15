@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI  # noqa: E402
 from app.auth import require_user
 from app.clients import build_clients, close_clients
 from app.config import get_settings
-from app.routers import ask, awards, health, reviews, smoke
+from app.routers import ask, awards, chat, health, reviews, smoke
 
 
 @asynccontextmanager
@@ -33,3 +33,4 @@ app.include_router(smoke.router, dependencies=[Depends(require_user)])  # Entra 
 app.include_router(ask.router, dependencies=[Depends(require_user)])
 app.include_router(awards.router, dependencies=[Depends(require_user)])
 app.include_router(reviews.router, dependencies=[Depends(require_user)])
+app.include_router(chat.router, dependencies=[Depends(require_user)])
