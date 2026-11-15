@@ -1,4 +1,9 @@
-import pytest
+import os
+
+# Before any test module imports app.main: unit tests must never export telemetry to Azure.
+os.environ["OTEL_SDK_DISABLED"] = "true"
+
+import pytest  # noqa: E402
 from fastapi.testclient import TestClient
 
 from app.config import get_settings

@@ -1,7 +1,12 @@
 from collections.abc import AsyncIterator
+
+from app import telemetry
+
+telemetry.configure()  # before FastAPI is imported/constructed: auto-instrumentation patches the class
+
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI  # noqa: E402
 
 from app.auth import require_user
 from app.clients import build_clients, close_clients
