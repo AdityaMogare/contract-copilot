@@ -15,6 +15,7 @@ from azure.storage.blob.aio import BlobServiceClient
 from openai import AsyncAzureOpenAI
 
 from app.config import Settings
+from app.db import make_pool
 
 COGNITIVE_SCOPE = "https://cognitiveservices.azure.com/.default"
 
@@ -28,6 +29,7 @@ class Clients:
     openai_rag: AsyncAzureOpenAI  # same endpoint/credential, but retries 429s
     keyvault: SecretClient
     blob: BlobServiceClient
+    pg: object | None = None      # AsyncConnectionPool (design 06); None if Postgres isn't configured
 
 
 def build_clients(settings: Settings) -> Clients:
@@ -36,6 +38,7 @@ def build_clients(settings: Settings) -> Clients:
     credential = DefaultAzureCredential()
     return Clients(
         credential=credential,
+        pg=make_pool(settings, credential),
         openai=AsyncAzureOpenAI(
             azure_endpoint=str(settings.azure_openai_endpoint),
             api_version=settings.azure_openai_api_version,
@@ -63,4 +66,6 @@ async def close_clients(clients: Clients) -> None:
     await clients.openai_rag.close()
     await clients.keyvault.close()
     await clients.blob.close()
+    if clients.pg is not None:
+        await clients.pg.close()
     await clients.credential.close()

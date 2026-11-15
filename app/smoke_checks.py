@@ -54,3 +54,17 @@ CHECKS: dict[str, Check] = {
     "keyvault": check_keyvault,
     "storage": check_storage,
 }
+
+
+async def check_postgres(clients: Clients, settings: Settings) -> str:
+    """Design 06: Entra-token login, then prove WHO we are and that the session is read-only."""
+    if clients.pg is None:
+        raise RuntimeError("Postgres not configured (PG_HOST/PG_USER unset)")
+    async with clients.pg.connection() as conn:
+        row = await (await conn.execute(
+            "SELECT current_user, current_setting('transaction_read_only'), "
+            "pg_has_role(current_user, 'copilot_reader', 'member')")).fetchone()
+    return f"user={row[0]} read_only={row[1]} copilot_reader={row[2]}"
+
+
+CHECKS["postgres"] = check_postgres

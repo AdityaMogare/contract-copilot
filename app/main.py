@@ -18,6 +18,8 @@ from app.routers import ask, health, smoke
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Create the credential + clients once; close them on shutdown (design 01 §6).
     app.state.clients = build_clients(get_settings())
+    if app.state.clients.pg is not None:
+        await app.state.clients.pg.open(wait=False)   # min_size=0: opens no connection until first use
     try:
         yield
     finally:

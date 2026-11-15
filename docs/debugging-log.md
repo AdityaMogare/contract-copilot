@@ -90,3 +90,13 @@ Format: symptom → where it showed up → root cause → fix.
 - **Symptom:** `pytest` went from 1.1 s to 2.2 s after adding OpenTelemetry.
 - **Root cause:** `telemetry.configure()` runs at import of `app.main` and falls back to reading `.env` from the cwd; test modules import the app before the `client` fixture `chdir("/")`s.
 - **Fix:** `tests/conftest.py` sets `OTEL_SDK_DISABLED=true` before anything imports the app; `configure()` honors it. Verified: no tracer provider installed under tests.
+
+## 2026-11-14 – Postgres create: `MissingSubscriptionRegistration`, hidden by a pipe
+- **Symptom:** step 9 "finished" (exit 0) but `az postgres flexible-server show` → ResourceNotFound.
+- **Where:** `infra/logs/09-pg.log`: PUT …/flexibleServers/pg-cczq9h → 409 `MissingSubscriptionRegistration` for `Microsoft.DBforPostgreSQL`.
+- **Root cause:** the resource provider was never registered (same class as Storage in step 4). `set -e` did stop the script, but I ran it as `./setup.sh 9 | tail`, so the exit code was tail's. Same mistake as the Part 52 ingest.
+- **Fix:** provider added to step 0's list and registered; long-running steps now run without a pipe (`> file; echo exit=$?`).
+
+## 2026-11-14 – Postgres firewall rules: "not supported for a server without public access enabled"
+- **Root cause:** `create --public-access None` disables the public endpoint entirely (not "no rules"); firewall rules need it enabled.
+- **Fix:** step 9 runs `flexible-server update --public-access Enabled`, then adds `allow-azure` (0.0.0.0) and `dev-<date>` (my IP, looked up at run time, never committed). Also: `db create` takes `-n/--name`, not `-d`.

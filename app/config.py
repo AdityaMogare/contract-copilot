@@ -32,6 +32,12 @@ class Settings(BaseSettings):
 
     smoke_timeout_s: float = 20.0
 
+    # Postgres (design 06). No password setting exists: the Entra token IS the password.
+    # pg_user = the Entra principal name: my UPN locally, "id-app-<sfx>" (the MI's name) in Azure.
+    pg_host: str | None = None
+    pg_database: str = "copilot"
+    pg_user: str | None = None
+
     # RAG (design 04). Starting values for the baseline, not tuned ones.
     rag_top_k: int = 8
     # RRF weight of the vector query vs BM25 (1.0 = equal). Design 05: 3.0 won on dev (hit@8 16→19/19).

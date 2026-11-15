@@ -55,6 +55,7 @@ PROVIDERS=(
   Microsoft.Storage Microsoft.KeyVault Microsoft.CognitiveServices Microsoft.Search
   Microsoft.OperationalInsights Microsoft.Insights Microsoft.ManagedIdentity
   Microsoft.App Microsoft.ContainerRegistry   # added for feature 02 (deploy)
+  Microsoft.DBforPostgreSQL                  # added for feature 06 (create failed with MissingSubscriptionRegistration)
 )
 BUDGET_NAME="budget-contract-copilot"
 
@@ -252,7 +253,42 @@ step_8_roles() {
   assign 08-roles-me "$me" User "Monitoring Metrics Publisher"    "$appi"
 }
 
-# Step 9: PostgreSQL Flexible Server: deferred (bills while idle). Added with the first SQL feature.
+# Step 9 (design 06): PostgreSQL Flexible Server, Burstable B1ms, PG16. COST: $0.0185/hour ≈ $13.50/month
+# while RUNNING (+ storage, billed even when stopped). Stop when idle: `./infra/setup.sh 9z`; Azure auto-starts
+# a stopped server after 7 days. ARM: PUT Microsoft.DBforPostgreSQL/flexibleServers/pg-<sfx> (async, minutes).
+# Auth: Microsoft Entra ONLY (password auth disabled: there is no admin password to store or leak).
+# Network: public endpoint. Our express ACA env has no outbound IPs/VNet, so the app can't be pinned by IP;
+# rule "allow-azure" (0.0.0.0) admits Azure-originated traffic, rule "dev-<date>" admits my current IP.
+# Reaching 5432 isn't enough: a caller needs an Entra token for a principal we created (accepted risk, design 06).
+PG="pg-$SFX"; PG_DB="copilot"
+step_9_postgres() {
+  local my_ip; my_ip="$(curl -s https://api.ipify.org)"   # looked up at run time, never committed
+  if ! az postgres flexible-server show -g "$RG" -n "$PG" -o none 2>/dev/null; then
+    run 09-pg az postgres flexible-server create -g "$RG" -n "$PG" -l "$LOCATION" \
+      --tier Burstable --sku-name Standard_B1ms --version 16 --storage-size 32 \
+      --microsoft-entra-auth Enabled --password-auth Disabled \
+      --public-access None --backup-retention 7 --yes -o none
+  fi
+  local me upn
+  me="$(az ad signed-in-user show --query id -o tsv)"; upn="$(az ad signed-in-user show --query userPrincipalName -o tsv)"
+  # Entra admin = me. Admins can create other Entra principals (the app MI) inside Postgres (step 9c).
+  run 09-pg-admin az postgres flexible-server microsoft-entra-admin create -g "$RG" -s "$PG" \
+    --display-name "$upn" --object-id "$me" --type User -o none
+  # Create used --public-access None, which turns the public endpoint OFF entirely ("Firewall rule operations
+  # are not supported for a server without public access enabled"). Turn it on; the rules below gate it.
+  run 09-pg-public az postgres flexible-server update -g "$RG" -n "$PG" --public-access Enabled -o none
+  run 09-pg-fw-azure az postgres flexible-server firewall-rule create -g "$RG" -s "$PG" \
+    -n allow-azure --start-ip-address 0.0.0.0 --end-ip-address 0.0.0.0 -o none
+  run 09-pg-fw-dev az postgres flexible-server firewall-rule create -g "$RG" -s "$PG" \
+    -n "dev-$(date +%Y%m%d)" --start-ip-address "$my_ip" --end-ip-address "$my_ip" -o none
+  run 09-pg-db az postgres flexible-server db create -g "$RG" -s "$PG" -n "$PG_DB" -o none
+  # Raw USAspending downloads (lineage + --from-blob replays), like far-raw for the FAR.
+  run 09-blob az storage container create --account-name "$ST" -n usaspending-raw --auth-mode login -o none
+}
+
+# Step 9z: stop Postgres to stop compute billing (storage still bills). Start again with 9y.
+step_9z_pg_stop()  { run 09z-pg-stop  az postgres flexible-server stop  -g "$RG" -n "$PG" -o none; }
+step_9y_pg_start() { run 09y-pg-start az postgres flexible-server start -g "$RG" -n "$PG" -o none; }
 
 # Step 10: Azure Container Registry, Basic. COST: ~$0.167/day ≈ $5/month (the only fixed cost).
 # Admin user disabled: it's a static username/password. Pushes use my Entra token (az acr login),
