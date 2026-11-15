@@ -49,7 +49,8 @@ def plan(chunks, existing: dict[str, str]):
     return to_embed, unchanged, stale
 
 
-def ingest_part(part, snapshot, http, io, settings, report: Report, dry_run: bool) -> None:
+def ingest_part(part, snapshot, http, io, settings, report: Report, dry_run: bool,
+                chunk_opts: dict | None = None) -> None:
     try:
         xml = ecfr.fetch_part_xml(http, snapshot, part)                       # hop 2
     except httpx.HTTPStatusError as e:
@@ -60,7 +61,7 @@ def ingest_part(part, snapshot, http, io, settings, report: Report, dry_run: boo
     amended = ecfr.fetch_amendment_dates(http, snapshot, part)                # hop 1
     sections = parse_part(xml, amended)                                       # hop 4
     salt = f"{settings.embed_deployment}|{settings.embed_dimensions}"
-    chunks = [c for s in sections for c in chunk_section(s, hash_salt=salt)]
+    chunks = [c for s in sections for c in chunk_section(s, hash_salt=salt, **(chunk_opts or {}))]
     report.parts.append(part)
     report.sections += len(sections)
     report.chunks += len(chunks)
@@ -86,6 +87,9 @@ def main(argv=None) -> int:
     ap.add_argument("--parts", default=",".join(ecfr.FAR_PARTS))
     ap.add_argument("--dry-run", action="store_true", help="fetch+parse+chunk only; no Azure writes")
     ap.add_argument("--trace", action="store_true", help="log every HTTP request/response (headers, status)")
+    ap.add_argument("--index", help="versioned index to write (default: SEARCH_INDEX_VERSION)")
+    ap.add_argument("--no-parent-title", action="store_true", help="design 05 E1 off")
+    ap.add_argument("--no-definition-units", action="store_true", help="design 05 E2 off")
     args = ap.parse_args(argv)
     if args.trace:
         logging.basicConfig(level=logging.WARNING, format="%(name)s: %(message)s")
@@ -93,6 +97,9 @@ def main(argv=None) -> int:
             logging.getLogger(name).setLevel(logging.INFO if name != "openai" else logging.DEBUG)
 
     settings = get_settings()
+    if args.index:
+        settings = settings.model_copy(update={"search_index_version": args.index})
+    chunk_opts = {"parent_title": not args.no_parent_title, "definition_units": not args.no_definition_units}
     report = Report(snapshot=args.date.isoformat())
     started = time.perf_counter()
     io = None
@@ -102,7 +109,7 @@ def main(argv=None) -> int:
     with ecfr.make_client() as http:
         for part in args.parts.split(","):
             try:
-                ingest_part(part.strip(), args.date, http, io, settings, report, args.dry_run)
+                ingest_part(part.strip(), args.date, http, io, settings, report, args.dry_run, chunk_opts)
             except Exception as e:  # one bad part must not hide or stop the rest
                 report.parts_failed[part.strip()] = f"{type(e).__name__}: {e}"[:500]
                 print(f"part {part.strip()}: FAILED {type(e).__name__}: {e}", file=sys.stderr, flush=True)

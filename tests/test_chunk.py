@@ -16,7 +16,8 @@ def test_every_chunk_within_token_cap_and_has_header():
     for s in ALL:
         for c in chunk_section(s):
             assert c.tokens <= MAX_TOKENS, (c.id, c.tokens)
-            assert c.content.startswith(f"FAR {s.number} {s.title}\nPart {s.part}")
+            assert c.content.startswith(f"FAR {s.number} {s.title}")
+            assert f"\nPart {s.part} " in c.content.split("\n\n", 1)[0]
 
 
 def test_6_302_1_splits_on_top_level_paragraphs():
@@ -71,3 +72,28 @@ def test_metadata_change_changes_hash():
     a = chunk_section(s)
     b = chunk_section(replace(s, amended_on=date(2030, 1, 1)))
     assert a[0].content == b[0].content and a[0].content_hash != b[0].content_hash
+
+
+def test_flags_off_reproduce_v1_chunks_exactly():
+    """A/B builds must differ only by the experiment: with E1+E2 off, every fixture chunk hashes as in v1."""
+    import json
+    v1 = json.loads((FIX / "v1-chunk-hashes.json").read_text())
+    now = {c.id: c.content_hash for s in ALL
+           for c in chunk_section(s, hash_salt="embed|512", parent_title=False, definition_units=False)}
+    assert now == v1
+
+
+def test_parent_title_in_header():
+    head = chunk_section(BY["6.302-1"])[0].content.split("\n")[0]
+    assert head.endswith("— under 6.302 Circumstances permitting other than full and open competition")
+    assert "— under" not in chunk_section(BY["6.001"])[0].content    # not a subsection
+
+
+def test_one_chunk_per_definition():
+    cs = chunk_section(BY["2.101"])
+    sat = [c for c in cs if c.citation == 'FAR 2.101 ("Simplified acquisition threshold")']
+    assert len(sat) == 1
+    assert sat[0].content.split("\n\n", 1)[1].startswith("Simplified acquisition threshold means $350,000")
+    assert len(cs) == 236                     # 235 definitions + the section lead-in
+    assert all(c.tokens <= MAX_TOKENS for c in cs)
+    assert len(chunk_section(BY["6.302-1"])) == 3   # non-definition sections are unaffected

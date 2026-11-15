@@ -67,3 +67,17 @@ def test_amendment_dates_attached():
     secs = _part6(amended={"6.302-1": date(2025, 10, 1)})
     assert secs["6.302-1"].amended_on == date(2025, 10, 1)
     assert secs["6.001"].amended_on is None
+
+
+def test_defined_terms_detected_in_2_101():
+    s = _edge()["2.101"]
+    terms = [b.term for b in s.blocks if b.term]
+    assert len(terms) == 235 and s.is_definition_list
+    assert "Agency head" in terms                     # "Agency head or head of the agency means"
+    assert "Contingency operation" in terms            # "(10 U.S.C. 101(a)(13)) means"
+    assert not _part6()["6.302-1"].is_definition_list
+
+
+def test_parent_of_subsection():
+    s = _part6()["6.302-1"]
+    assert (s.parent, s.parent_title) == ("6.302", "Circumstances permitting other than full and open competition")

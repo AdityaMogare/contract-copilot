@@ -48,10 +48,19 @@ class _Piece:
     texts: list[str]
     labels: list[str]
     tokens: int
+    term: str | None = None
 
 
-def header(s: Section) -> str:
-    h = f"FAR {s.number} {s.title}\nPart {s.part} {s.part_title}"
+TERM_SLACK = 40   # header tokens reserved for a defined term (E2)
+
+
+def header(s: Section, parent_title: bool = False, term: str | None = None) -> str:
+    h = f"FAR {s.number} {s.title}"
+    if parent_title and s.parent_title:                 # E1: "16.202-2 Application" alone says nothing
+        h += f" — under {s.parent} {s.parent_title}"
+    if term:                                            # E2: the term is the strongest signal
+        h += f' — "{term}"'
+    h += f"\nPart {s.part} {s.part_title}"
     if s.subpart:
         h += f" > Subpart {s.subpart} {s.subpart_title}"
     return h
@@ -74,6 +83,19 @@ def _units(s: Section) -> list[_Piece]:
     return units
 
 
+def _definition_units(s: Section) -> list[_Piece]:
+    """One unit per defined term. Text before the first term (the section's lead-in) is its own unit."""
+    units: list[_Piece] = []
+    for b in s.blocks:
+        if b.term or not units:
+            units.append(_Piece([b.text], [b.label] if b.label else [], 0, b.term))
+        else:
+            units[-1].texts.append(b.text)
+    for u in units:
+        u.tokens = count_tokens("\n".join(u.texts))
+    return units
+
+
 def _hard_split(text: str, budget: int) -> list[str]:
     toks = _enc.encode(text)
     return [_enc.decode(toks[i:i + budget]) for i in range(0, len(toks), budget)]
@@ -88,7 +110,7 @@ def _fit(units: list[_Piece], budget: int) -> list[_Piece]:
             continue
         for t in u.texts:
             parts = [t] if count_tokens(t) <= budget else _hard_split(t, budget)
-            out += [_Piece([p], list(u.labels), count_tokens(p)) for p in parts]
+            out += [_Piece([p], list(u.labels), count_tokens(p), u.term) for p in parts]
     return out
 
 
@@ -103,13 +125,17 @@ def _range(labels: list[str]) -> str:
     return "; ".join(f"({r[0]})" if len(r) == 1 else f"({r[0]})–({r[-1]})" for r in runs)
 
 
-def chunk_section(s: Section, hash_salt: str = "") -> list[Chunk]:
-    head = header(s)
-    budget = MAX_TOKENS - count_tokens(head) - 4      # 4 = the blank line + join newlines slack
+def chunk_section(s: Section, hash_salt: str = "", parent_title: bool = True,
+                  definition_units: bool = True) -> list[Chunk]:
+    """Flags exist for A/B index builds (design 05). Both False reproduces the v1 chunks exactly."""
+    defs = definition_units and s.is_definition_list
+    base = header(s, parent_title)
+    budget = MAX_TOKENS - count_tokens(base) - 4 - (TERM_SLACK if defs else 0)   # 4: blank line + joins
     groups: list[list[_Piece]] = [[]]
     used = 0
-    for p in _fit(_units(s), budget):
-        if groups[-1] and used + p.tokens + 1 > budget:
+    for p in _fit(_definition_units(s) if defs else _units(s), budget):
+        # Definitions are never packed together: one term per vector is the point of E2.
+        if groups[-1] and (defs or used + p.tokens + 1 > budget):
             groups.append([])
             used = 0
         groups[-1].append(p)
@@ -117,16 +143,21 @@ def chunk_section(s: Section, hash_salt: str = "") -> list[Chunk]:
 
     chunks = []
     for i, g in enumerate(x for x in groups if x):
+        term = g[0].term if defs else None
+        head = header(s, parent_title, term)
         body = "\n".join(t for p in g for t in p.texts)
         content = f"{head}\n\n{body}"
         rng = _range([lab for p in g for lab in p.labels])
+        citation = f"FAR {s.number}{rng}" + (f' ("{term}")' if term else "")
         # Hash everything we write except the vector, so a metadata-only fix (e.g. a citation)
         # still counts as "changed" and reaches the index.
         meta = f"{rng}|{s.title}|{s.subpart}|{s.amended_on}"
+        if term:
+            meta += f"|{term}"
         chunks.append(Chunk(
             id=f"{s.number.replace('.', '_')}--{i:03d}",
             section=s.number, part=s.part, subpart=s.subpart, section_title=s.title,
-            paragraph_range=rng, citation=f"FAR {s.number}{rng}", url=s.url,
+            paragraph_range=rng, citation=citation, url=s.url,
             content=content,
             content_hash=hashlib.sha256(f"{hash_salt}\n{meta}\n{content}".encode()).hexdigest(),
             amended_on=s.amended_on, tokens=count_tokens(content),
