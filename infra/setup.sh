@@ -18,7 +18,8 @@ RG="rg-contract-copilot"
 SFX="${SFX:?set SFX, a short unique suffix, e.g. SFX=ccp7x}"   # globally-unique names need it
 # Azure for Students: spending limit On = hard stop when credit runs out (docs/status.md).
 # Pinned so a changed CLI default can never create resources in the PAYG subscription.
-SUB="aa6c86fe-3f91-41f5-83e3-63ae93f3cdeb"
+# Read from .env (gitignored): a subscription ID isn't a secret, but it has no place in a public repo.
+SUB="${AZURE_SUBSCRIPTION_ID:?set AZURE_SUBSCRIPTION_ID in .env (az account show --query id -o tsv)}"
 az account set --subscription "$SUB"
 
 LOG_DIR="$(cd "$(dirname "$0")" && pwd)/logs"
@@ -447,6 +448,6 @@ run_py() {  # like run(), but for our Python helpers (no --debug flag to append)
 
 # ---- dispatch ---------------------------------------------------------------
 step="${1:?usage: $0 <step-number>}"
-fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1)"
+fn="$(declare -F | awk '{print $3}' | grep -E "^step_${step}_" | head -1 || true)"   # no match must reach the message below
 [[ -n "$fn" ]] || { echo "no step $step defined" >&2; exit 1; }
 "$fn"

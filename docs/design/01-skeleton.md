@@ -82,7 +82,7 @@ Errors: a check's error string is "<ExceptionType> <http status if any>: <short 
 4. **DefaultAzureCredential → credential chain**, tried in order: Environment → WorkloadIdentity →
    ManagedIdentity → … → **AzureCliCredential**. Locally the chain gets as far as the CLI, which runs
    `az account get-access-token --scope https://cognitiveservices.azure.com/.default`, so the token is
-   **mine** (`mogare@usc.edu`, MFA). In Container Apps, **ManagedIdentityCredential** wins and
+   **mine** (my USC Entra account, MFA). In Container Apps, **ManagedIdentityCredential** wins and
    calls the platform's identity endpoint, using `AZURE_CLIENT_ID` to pick `id-app-cczq9h`.
    The token is **cached in memory per scope** inside the credential and refreshed ~5 min
    before expiry, so only the first call per scope pays this hop.

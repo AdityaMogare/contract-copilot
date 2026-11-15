@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1150" viewBox="20 0 1900 1150">
+<rect x="20" y="0" width="1900" height="1150" fill="#ffffff"/>
+<defs><marker id="a" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8" fill="#333"/></marker></defs>
+<text x="40" y="47.6" font-size="26" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#1e1e1e">Contract Intelligence Copilot: end-to-end target architecture on Azure</text>
+<text x="40" y="72.9" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">Government contracting staff ask about FAR regulations and Air Force contract awards; answers are grounded, cited, traced, and evaluated. Numbers = the request path (golden</text>
+<text x="40" y="90.4" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">trace).</text>
+<rect x="1560" y="20" width="90" height="36" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1605.0" y="44.1" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Live</text>
+<rect x="1660" y="20" width="120" height="36" rx="8" fill="#ffec99" stroke="#e8590c" stroke-width="2"/>
+<text x="1720.0" y="35.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">In progress</text>
+<text x="1720.0" y="51.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">(06)</text>
+<rect x="1790" y="20" width="90" height="36" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1835.0" y="44.1" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Planned</text>
+<rect x="40" y="140" width="240" height="80" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="160.0" y="177.0" font-size="16" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Contracting staff</text>
+<text x="160.0" y="197.0" font-size="16" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">(browser / curl)</text>
+<rect x="40" y="290" width="240" height="110" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="160.0" y="316.1" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Microsoft Entra ID</text>
+<text x="160.0" y="333.6" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">app registration contract-</text>
+<text x="160.0" y="351.1" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">copilot-web, scope</text>
+<text x="160.0" y="368.6" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">access_as_user, assignment</text>
+<text x="160.0" y="386.1" font-size="14" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">required</text>
+<rect x="40" y="440" width="240" height="300" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="160.0" y="506.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Managed identity id-app-cczq9h</text>
+<text x="160.0" y="522.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">tokens per scope via ACA</text>
+<text x="160.0" y="538.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">/msi/token (cached)</text>
+<text x="160.0" y="555.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e"></text>
+<text x="160.0" y="571.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Roles: OpenAI User · Search</text>
+<text x="160.0" y="587.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Index Data Reader + Reader ·</text>
+<text x="160.0" y="603.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Blob Data Reader · Key Vault</text>
+<text x="160.0" y="620.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Secrets User · AcrPull ·</text>
+<text x="160.0" y="636.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Monitoring Metrics Publisher ·</text>
+<text x="160.0" y="652.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Postgres principal in</text>
+<text x="160.0" y="668.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">copilot_reader (read-only, 5 s</text>
+<text x="160.0" y="685.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">timeout)</text>
+<rect x="320" y="120" width="720" height="650" rx="8" fill="none" stroke="#1971c2" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="332" y="146.1" font-size="17" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#1971c2">Azure Container Apps: ca-copilot (FastAPI, Python 3.12), scale to zero</text>
+<rect x="350" y="170" width="320" height="75" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="510.0" y="196.9" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Ingress (TLS) + Entra JWT validation</text>
+<text x="510.0" y="213.2" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">signature (JWKS), iss, aud, exp, scp →</text>
+<text x="510.0" y="229.4" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">401/403</text>
+<rect x="350" y="270" width="320" height="80" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="510.0" y="307.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Input guardrails (calls Content Safety)</text>
+<text x="510.0" y="323.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">prompt shields · PII masking · audit log</text>
+<rect x="350" y="375" width="320" height="85" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="510.0" y="406.9" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">LangGraph supervisor agent</text>
+<text x="510.0" y="423.2" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">routes to tools · memory = checkpoints in</text>
+<text x="510.0" y="439.4" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Postgres</text>
+<rect x="350" y="485" width="320" height="135" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="510.0" y="535.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Competition check (08)</text>
+<text x="510.0" y="550.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">award&#x27;s competition coding + far_authority (e.g.</text>
+<text x="510.0" y="565.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">6.302-1) vs FAR Part 6 → flag gaps → human</text>
+<text x="510.0" y="580.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">review queue. No legal verdicts.</text>
+<rect x="350" y="645" width="320" height="95" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="510.0" y="690.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Output: Pydantic answer + citations + status</text>
+<text x="510.0" y="705.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">(answered / partial / not_found) + trace_id</text>
+<rect x="720" y="170" width="290" height="75" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="865.0" y="197.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">GET /health (probes)</text>
+<text x="865.0" y="212.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">GET /smoke: chat, embed, search, kv, blob,</text>
+<text x="865.0" y="227.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">postgres</text>
+<rect x="720" y="265" width="290" height="110" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="865.0" y="302.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">search_regulations</text>
+<text x="865.0" y="317.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">hybrid RAG over the FAR; numbered sources →</text>
+<text x="865.0" y="332.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">server-mapped citations; &quot;I don&#x27;t know&quot;</text>
+<text x="865.0" y="347.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">(POST /ask, live)</text>
+<rect x="720" y="385" width="290" height="90" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="865.0" y="420.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">query_contracts (07)</text>
+<text x="865.0" y="435.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Text-to-SQL: sqlglot SELECT-only allowlist,</text>
+<text x="865.0" y="450.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">row limit, timeout, read-only role</text>
+<rect x="720" y="495" width="290" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="865.0" y="527.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">extract_contract (09)</text>
+<text x="865.0" y="542.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">PDF → Document Intelligence → Pydantic</text>
+<rect x="1100" y="140" width="330" height="95" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1265.0" y="168.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Azure OpenAI (AI Services, francecentral)</text>
+<text x="1265.0" y="185.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">chat = gpt-5-mini (50K TPM) · embed = text-</text>
+<text x="1265.0" y="201.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">embedding-3-small, 512 dims (300K TPM) · keys</text>
+<text x="1265.0" y="217.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">disabled</text>
+<rect x="1100" y="255" width="330" height="105" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1265.0" y="288.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Azure AI Search (Free)</text>
+<text x="1265.0" y="305.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">alias far-chunks → far-chunks-v2 · 6,442</text>
+<text x="1265.0" y="321.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">clause-aware chunks · hybrid BM25 + vector,</text>
+<text x="1265.0" y="337.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">RRF (vector weight 3)</text>
+<rect x="1100" y="380" width="330" height="95" rx="8" fill="#ffec99" stroke="#e8590c" stroke-width="2"/>
+<text x="1265.0" y="416.9" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">PostgreSQL Flexible B1ms (PG16)</text>
+<text x="1265.0" y="433.2" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">awards · transactions · load_runs ·</text>
+<text x="1265.0" y="449.4" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">checkpoints · Entra-only auth, no passwords</text>
+<rect x="1100" y="495" width="330" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1265.0" y="535.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Document Intelligence (contract PDFs)</text>
+<rect x="1100" y="585" width="330" height="60" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1265.0" y="620.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Content Safety (prompt shields)</text>
+<rect x="1100" y="665" width="330" height="70" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1265.0" y="697.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Key Vault (RBAC)</text>
+<text x="1265.0" y="713.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">for any future secret; none needed so far</text>
+<rect x="1490" y="140" width="390" height="100" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1685.0" y="179.4" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Application Insights + Log Analytics</text>
+<text x="1685.0" y="195.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">OpenTelemetry span per hop · tokens &amp; reasoning tokens</text>
+<text x="1685.0" y="211.9" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">per call · Entra-auth ingestion (no keys)</text>
+<rect x="1490" y="260" width="390" height="60" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1685.0" y="287.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Workbook: latency, cost/request, IDK rate, errors +</text>
+<text x="1685.0" y="303.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">alerts</text>
+<rect x="1490" y="340" width="390" height="90" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1685.0" y="374.4" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">GitHub Actions (OIDC, no secrets)</text>
+<text x="1685.0" y="390.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">uv run pytest → golden-set eval gate → dev / staging /</text>
+<text x="1685.0" y="406.9" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">prod</text>
+<rect x="1490" y="450" width="390" height="70" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1685.0" y="482.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Azure Container Registry (Basic)</text>
+<text x="1685.0" y="498.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">image tag = git SHA · pulled by the MI (AcrPull)</text>
+<rect x="1490" y="540" width="390" height="95" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1685.0" y="568.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Evals</text>
+<text x="1685.0" y="585.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">25-question golden set + sealed 12-question held-out ·</text>
+<text x="1685.0" y="601.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">retrieval &amp; end-to-end runners · Foundry groundedness</text>
+<text x="1685.0" y="617.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">(planned)</text>
+<rect x="1490" y="655" width="390" height="60" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1685.0" y="690.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Budget alert $30/month · Azure for Students</text>
+<polyline points="160,220 160,290" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="168" y="258.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">1 get token</text>
+<polyline points="280,180 350,205" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="290" y="165.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">2 HTTPS + Bearer</text>
+<polyline points="280,350 350,232" fill="none" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="290" y="313.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">JWKS</text>
+<polyline points="510,245 510,270" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="510,350 510,375" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="518" y="365.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">3</text>
+<polyline points="670,405 720,320" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="690" y="358.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">4</text>
+<polyline points="670,420 720,430" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="670,440 720,530" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="510,460 510,485" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="510,620 510,645" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="1010,285 1100,215" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="1030" y="245.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">5 embed</text>
+<polyline points="1010,320 1100,320" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="1030" y="313.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">6 search</text>
+<polyline points="690,385 690,158 1100,158" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="870" y="149.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">7 chat (strict JSON schema)</text>
+<polyline points="1010,430 1100,430" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="1030" y="423.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">SQL as MI</text>
+<polyline points="1010,530 1100,530" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="1040" y="523.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">OCR</text>
+<polyline points="1040,128 1460,128 1490,175" fill="none" stroke="#1971c2" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="1300" y="119.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">8 spans (async)</text>
+<polyline points="1880,485 1898,485 1898,782 860,782 860,770" fill="none" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="1300" y="773.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">pull image (AcrPull)</text>
+<polyline points="1685,430 1685,450" fill="none" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<rect x="40" y="800" width="1840" height="330" rx="8" fill="none" stroke="#1971c2" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="52" y="826.1" font-size="17" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#1971c2">Ingestion &amp; data pipelines (raw data archived in Blob for lineage + replays)</text>
+<rect x="70" y="850" width="230" height="70" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="185.0" y="874.4" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">eCFR versioner API</text>
+<text x="185.0" y="890.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">FAR XML, per part, point-in-</text>
+<text x="185.0" y="906.9" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">time</text>
+<rect x="330" y="850" width="200" height="70" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="430.0" y="882.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Blob: far-raw</text>
+<text x="430.0" y="898.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">ecfr/{date}/part-N.xml</text>
+<rect x="560" y="850" width="200" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="660.0" y="882.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Event Grid</text>
+<text x="660.0" y="898.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">(blob created)</text>
+<rect x="790" y="850" width="240" height="70" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="910.0" y="882.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Azure Function → Service Bus</text>
+<text x="910.0" y="898.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">queue (one message per part)</text>
+<rect x="1060" y="850" width="380" height="70" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="1250.0" y="875.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Worker: parse → clause-aware chunk (1 chunk per</text>
+<text x="1250.0" y="890.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">definition) → embed → upsert by content hash, delete</text>
+<text x="1250.0" y="905.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">stale</text>
+<rect x="70" y="955" width="230" height="70" rx="8" fill="#ffec99" stroke="#e8590c" stroke-width="2"/>
+<text x="185.0" y="987.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">USAspending bulk download API</text>
+<text x="185.0" y="1003.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Air Force contracts, FY2025</text>
+<rect x="330" y="955" width="200" height="70" rx="8" fill="#ffec99" stroke="#e8590c" stroke-width="2"/>
+<text x="430.0" y="987.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Blob: usaspending-raw</text>
+<text x="430.0" y="1003.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">fy2025/qN.zip</text>
+<rect x="560" y="955" width="470" height="70" rx="8" fill="#ffec99" stroke="#e8590c" stroke-width="2"/>
+<text x="795.0" y="987.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Loader: transform (far_authority parsed, competition from base action) →</text>
+<text x="795.0" y="1002.8" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">COPY in one transaction → reconcile → load_runs</text>
+<rect x="70" y="1050" width="230" height="60" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="185.0" y="1085.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">User uploads contract PDF</text>
+<rect x="330" y="1050" width="200" height="60" rx="8" fill="#b2f2bb" stroke="#2f9e44" stroke-width="2"/>
+<text x="430.0" y="1085.7" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Blob: contracts</text>
+<rect x="560" y="1050" width="470" height="60" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="795.0" y="1085.2" font-size="12" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Event Grid → Function → Document Intelligence → extraction → Postgres</text>
+<rect x="1530" y="850" width="320" height="250" rx="8" fill="#f1f3f5" stroke="#868e96" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="1690.0" y="940.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Today: ingestion runs as a CLI as Aditya</text>
+<text x="1690.0" y="956.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">(Blob / Search / Postgres write roles).</text>
+<text x="1690.0" y="972.6" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e"></text>
+<text x="1690.0" y="988.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">Target: the same functions run in the event-</text>
+<text x="1690.0" y="1005.1" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">driven worker with its own identity; the</text>
+<text x="1690.0" y="1021.3" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="middle" fill="#1e1e1e">app&#x27;s identity stays read-only.</text>
+<polyline points="300,885 330,885" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="530,885 560,885" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="760,885 790,885" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="1030,885 1060,885" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="300,990 330,990" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="530,990 560,990" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="300,1080 330,1080" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="530,1080 560,1080" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<polyline points="1440,885 1462,885 1462,340 1430,340" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="1468" y="773.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">index</text>
+<polyline points="1030,990 1060,990 1060,455 1100,455" fill="none" stroke="#1e1e1e" stroke-width="2" marker-end="url(#a)"/>
+<text x="1066" y="773.8" font-size="13" font-family="Helvetica, Arial, sans-serif" text-anchor="start" fill="#495057">COPY</text>
+</svg>
