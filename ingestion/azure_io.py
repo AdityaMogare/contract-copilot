@@ -106,7 +106,7 @@ class AzureIO:
             settings=settings,
             blob=BlobServiceClient(str(settings.storage_account_url), credential=cred),
             index_admin=SearchIndexClient(endpoint, cred),
-            search=SearchClient(endpoint, settings.search_index, cred),
+            search=SearchClient(endpoint, settings.search_index_version, cred),
             openai=AzureOpenAI(
                 azure_endpoint=str(settings.azure_openai_endpoint),
                 api_version=settings.azure_openai_api_version,
@@ -126,10 +126,10 @@ class AzureIO:
     def ensure_index(self) -> bool:
         """Create the index if missing. Returns True if it was created."""
         try:
-            self.index_admin.get_index(self.settings.search_index)
+            self.index_admin.get_index(self.settings.search_index_version)
             return False
         except ResourceNotFoundError:
-            self.index_admin.create_index(index_schema(self.settings.search_index, self.settings.embed_dimensions))
+            self.index_admin.create_index(index_schema(self.settings.search_index_version, self.settings.embed_dimensions))
             return True
 
     # hop 6

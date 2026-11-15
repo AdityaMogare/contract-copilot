@@ -20,8 +20,10 @@ class Settings(BaseSettings):
     embed_deployment: str = "embed"
 
     search_endpoint: AnyHttpUrl
-    # Versioned name: a schema change means a new index, then a config switch (design 03).
-    search_index: str = "far-chunks-v1"
+    # The app queries the ALIAS; ingestion creates/writes the versioned index behind it.
+    # A schema change builds v2, then repoints the alias (design 04, infra step 7b).
+    search_index: str = "far-chunks"
+    search_index_version: str = "far-chunks-v1"
     # Must match at ingest AND query time, or Search rejects the vector (design 03 §4).
     embed_dimensions: int = 512
     key_vault_url: AnyHttpUrl
@@ -29,6 +31,16 @@ class Settings(BaseSettings):
     storage_container: str = "far-raw"
 
     smoke_timeout_s: float = 20.0
+
+    # RAG (design 04). Starting values for the baseline, not tuned ones.
+    rag_top_k: int = 8
+    rag_reasoning_effort: str = "low"
+    rag_max_completion_tokens: int = 2000
+    rag_deadline_s: float = 25.0
+    max_question_chars: int = 1000
+
+    # Not a secret once App Insights local auth is off (infra step 2b): ingestion needs an Entra token.
+    applicationinsights_connection_string: str | None = None
 
     # Entra access-token validation (design 02 revision). Fail-closed: required unless the
     # environment explicitly says otherwise (local .env sets AUTH_REQUIRED=false).
