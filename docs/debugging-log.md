@@ -100,3 +100,10 @@ Format: symptom → where it showed up → root cause → fix.
 ## 2026-11-14 – Postgres firewall rules: "not supported for a server without public access enabled"
 - **Root cause:** `create --public-access None` disables the public endpoint entirely (not "no rules"); firewall rules need it enabled.
 - **Fix:** step 9 runs `flexible-server update --public-access Enabled`, then adds `allow-azure` (0.0.0.0) and `dev-<date>` (my IP, looked up at run time, never committed). Also: `db create` takes `-n/--name`, not `-d`.
+
+## 2026-11-14 – Live app down for a few minutes: revision pointed at an image that was never built
+- **Symptom:** after `IMAGE_TAG=<HEAD> ./setup.sh 13`, the active revision showed image `copilot:8f8fd33`, health `None`, 100% traffic.
+- **Where:** `infra/logs/13-ca.log`: "Failed to provision revision … BuildFailed: The container image 'acrcczq9h.azurecr.io/copilot:8f8fd33' was not found in the registry".
+- **Root cause:** my command chain `commit && deploy.sh …; setup.sh 13` — a bad grep (`$ID_APP` read as a regex anchor) stopped the chain before commit+deploy, but step 13 (after `;`) still ran with the HEAD tag, which had never been pushed. The update **failed but still replaced the app's template**: the env vars landed and the single revision pointed at the missing image.
+- **Fix:** commit → `deploy.sh` (build + push `6eeb721` + update image) → Healthy; live `/smoke` 6/6.
+- **Lessons:** (1) step 13 must verify the image tag exists in ACR before updating (`az acr repository show-tags`); (2) in single-revision mode a failed update is not a no-op; (3) chain deploy steps with `&&` only.

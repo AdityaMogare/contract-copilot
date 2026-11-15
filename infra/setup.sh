@@ -414,6 +414,10 @@ step_13_app() {
     PG_HOST="$PG.postgres.database.azure.com" PG_DATABASE="$PG_DB" PG_USER="$ID_APP"   # design 06: MI's Entra name
   )
 
+  # Guard (debugging-log 2026-11-14): never point the app at a tag that isn't in the registry. A failed update
+  # still replaces the single revision's template, which took the live app down.
+  az acr repository show-tags -n "$ACR" --repository copilot -o tsv | grep -qx "$IMAGE_TAG" \
+    || { echo "REFUSING: image copilot:$IMAGE_TAG not in $ACR (run infra/deploy.sh first)" >&2; return 1; }
   if ! az containerapp show -g "$RG" -n "$CA" -o none 2>/dev/null; then
     run 13-ca az containerapp create -g "$RG" -n "$CA" --environment "$CAE" \
       --image "$ACR.azurecr.io/copilot:$IMAGE_TAG" \
