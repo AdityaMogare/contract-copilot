@@ -354,6 +354,8 @@ step_13_app() {
   id_client="$(az identity show -g "$RG" -n "$ID_APP" --query clientId -o tsv)"
   app_id="$(az ad app list --display-name "$APPREG" --query '[0].appId' -o tsv)"
   tenant="$(az account show --query tenantId -o tsv)"
+  local appi_conn   # not a secret: local auth is off (step 2b), the MI needs an Entra token to write
+  appi_conn="$(az monitor app-insights component show -g "$RG" -a "$APPI" --query connectionString -o tsv)"
   local env_vars=(
     AZURE_CLIENT_ID="$id_client"
     AZURE_OPENAI_ENDPOINT="https://$AIS.cognitiveservices.azure.com/"
@@ -364,6 +366,8 @@ step_13_app() {
     STORAGE_ACCOUNT_URL="https://$ST.blob.core.windows.net" STORAGE_CONTAINER=far-raw
     SMOKE_TIMEOUT_S=20
     AUTH_REQUIRED=true AUTH_TENANT_ID="$tenant" AUTH_AUDIENCE="$app_id"
+    SEARCH_INDEX="$SEARCH_ALIAS"                                    # design 04: query the alias
+    APPLICATIONINSIGHTS_CONNECTION_STRING="$appi_conn" OTEL_SERVICE_NAME=copilot-api
   )
 
   if ! az containerapp show -g "$RG" -n "$CA" -o none 2>/dev/null; then
