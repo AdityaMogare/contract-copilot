@@ -90,11 +90,14 @@ def main(effort: str, runs: int, label: str, direct_final: bool = False) -> None
                 t = time.perf_counter()
                 r = c.post("/chat", json={"message": it["question"]})
                 secs = time.perf_counter() - t
-                b = r.json() if r.status_code == 200 else {"status": f"http_{r.status_code}", "answer": "", "sources": []}
+                b = r.json() if r.status_code == 200 else {"status": f"http_{r.status_code}", "answer": "", "sources": [],
+                                                            "error": str(r.json().get("detail"))[:500]}
                 s = score(it, b, list(recorded))
                 rows.append({"id": it["id"], "kind": it["kind"], "run": n, "status": b["status"], "seconds": round(secs, 1),
-                             "tool_calls": len(recorded), "usage": b.get("usage"), "answer": b.get("answer", "")[:600], **s})
-                print(f"{it['id']} run{n} {it['kind']:11} {b['status']:10} correct={s['correct']} tools={s['tools']} {secs:.1f}s", flush=True)
+                             "tool_calls": len(recorded), "usage": b.get("usage"), "answer": b.get("answer", "")[:600],
+                             "error": b.get("error"), **s})
+                print(f"{it['id']} run{n} {it['kind']:11} {b['status']:10} correct={s['correct']} tools={s['tools']} {secs:.1f}s"
+                      + (f" ERROR {b['error']}" if b.get("error") else ""), flush=True)
 
     def rate(kinds):
         rs = [r for r in rows if r["kind"] in kinds]
