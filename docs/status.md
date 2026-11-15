@@ -12,6 +12,8 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] FAR ingestion: 4,065 clause-aware chunks in `far-chunks-v1` (17.49 MB of 50 MB), incremental re-run embeds 0
 - [x] `POST /ask` live behind Entra auth; App Insights traces via MI + Entra; golden-set baseline: retrieval hit@8 16/19, correct IDK 6/6, false IDK 0/19
 - [x] Retrieval tuning (design 05): held-out hit@8 7/10 → 9/10, false IDK 1/10 → 0/10; live on `far-chunks-v2` + vector weight 3
+- [x] Award data (design 06): FY2025 Air Force contracts in Postgres (105,408 transactions, 56,832 awards); app reads as MI, read-only; live `/smoke` 6/6
+- [x] Public repo: https://github.com/AdityaMogare/contract-copilot
 
 ## Decisions
 | Date | Decision | Why |
@@ -34,6 +36,9 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | App queries alias `far-chunks`; ingestion writes `far-chunks-v1` | Index rebuilds become an alias swap, not a redeploy |
 | 2026-11-14 | Tuning judged on a sealed held-out set; "after" config pre-registered | Avoid reporting numbers tuned on the questions they're measured on |
 | 2026-11-14 | One chunk per definition; hybrid with vector weight 3 (not vector-only) | E2 fixed definition misses; dev set doesn't test exact identifiers, which BM25 covers |
+| 2026-11-14 | Postgres B1ms, Entra-only auth, public endpoint gated by allow-azure + my IP | Express ACA env has no outbound IPs/VNet; no passwords exist to attack. Stop when idle (`setup.sh 9z`) |
+| 2026-11-14 | Read-only + timeout on the MI's login role and per session | Postgres doesn't apply group-role settings to members |
+| 2026-11-14 | Public GitHub repo; personal identifiers removed from tracked files, history kept | Portfolio + Week 3 CI needs GitHub; rewriting history would break SHA image tags |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
@@ -42,4 +47,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 - 03 open: break-it drills (1536-dim query, remove index-write role), quiz, 30-second explanation
 - 04 open: Aditya reviews golden set; break-it drills (throttle chat, DFARS question, prompt injection); quiz; 30-second explanation
 - 05 open: decide u03 label (AFFARS question answered as grounded `partial`); delete `far-chunks-v1` once v2 is trusted (needs OK); quiz
-- Next: Week 2 (USAspending → Postgres, Text-to-SQL) or the open break-it drills
+- 06 open: quiz; drill "remove the MI principal"; decide whether to add FY2024
+- Next: 07 Text-to-SQL (`query_contracts`) on the awards schema

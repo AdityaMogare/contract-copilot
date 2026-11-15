@@ -169,11 +169,32 @@ row-count reconciliation in `load_runs`: CSV rows = transactions rows; distinct 
 
 ---
 ## After building
+### Results
+- FY2025 load: 4 quarters, **105,408 transactions → 56,832 awards**, reconciled in the same DB transaction
+  (`load_runs`), 803 s end to end (≈ 3–4 min per quarter waiting for USAspending; COPY is seconds).
+  Quarter sizes: 21,650 / 22,891 / 25,242 / 35,625 (Q4 = fiscal-year-end spending).
+- `competition_source`: base_action 32,791, earliest_loaded_action 24,041 (42% are mods of pre-FY2025 awards).
+- Sanity: $98.39B obligated; top `far_authority` 6.302-1 (6,417 awards, $27.9B); 6,526 awards coded as
+  competed (A/D) with exactly one offer, a signal for the competition check (08).
+- Live `/smoke` 6/6: `postgres ok user=id-app-cczq9h read_only=on copilot_reader=True` (178 ms).
+
 ### Trace vs prediction
--
-### Break-it results (planned)
-- Remove the MI's Postgres principal → `/smoke` postgres 28000
-- `INSERT` as copilot_reader → 25006 read-only transaction
-- `SELECT pg_sleep(10)` as copilot_reader → 57014 statement timeout after 5 s
+| Predicted | Observed | Why it matters |
+|---|---|---|
+| Step 9 creates the server | **409 `MissingSubscriptionRegistration`** for `Microsoft.DBforPostgreSQL`; hidden at first because I piped the script through `tail` | Register providers up front (now in step 0); never trust `$?` through a pipe |
+| `--public-access None` = public endpoint with no rules | It **disables** the public endpoint; firewall rules then fail ("not supported for a server without public access") | `update --public-access Enabled`, then rules |
+| `ALTER ROLE copilot_reader SET statement_timeout …` covers the app | **Group-role settings don't apply to members**; they apply to the role that logs in | Set on the MI's login role (`id-app-cczq9h`), plus per-session options from the pool |
+| transform.sql (staging → tables) | Transform in Python (`awards/transform.py`) | Testable without a database; COPY still does the bulk write |
+| FY2025 ≈ 85K transactions, ~60K awards | 105,408 and 56,832 | Q4 is 1.6× Q1. The search API's count (58,554 contracts) uses a different time filter than "action dated in FY2025" |
+| Quarter download ≈ 3–4 min | Same; Q1 was instant on reload because USAspending served the file it had already generated | Their cache is keyed by the filter |
+| — | A failed `containerapp update` (image tag never built) **still replaced the revision** and took the app down for minutes | Step 13 now refuses a tag that isn't in ACR (debugging log) |
+
+### Break-it results (as `copilot_reader` with the app's exact session options)
+| Drill | Result |
+|---|---|
+| `INSERT INTO awards …` | **25006** read-only transaction (blocked before permissions are even checked) |
+| `SELECT * FROM load_runs` | **42501** permission denied (role only has SELECT on awards, transactions) |
+| `SELECT pg_sleep(10)` | **57014** statement timeout after **5.1 s** |
+| Remove the MI's principal | not run (would break live `/smoke`; planned with the other drills) |
 ### 30-second explanation
 -
