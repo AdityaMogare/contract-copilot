@@ -16,6 +16,17 @@ SAFE = [
     "SELECT extract(month FROM action_date), count(*) FROM public.transactions GROUP BY 1",
     "SELECT coalesce(type_of_set_aside, 'NONE'), count(*) FILTER (WHERE total_obligated > 0) FROM awards GROUP BY 1",
     "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY total_obligated) FROM awards",
+    # Ordinary predicates. The first live run rejected AND (sqlglot models And/Or as Func subclasses).
+    "SELECT * FROM awards WHERE fiscal_year = 2025 AND extent_competed_code = 'A' OR NOT number_of_offers_received = 3",
+    "SELECT * FROM awards WHERE far_authority IN ('6.302-1', '6.302-2') AND piid NOT IN (SELECT award_key FROM transactions) AND total_obligated BETWEEN 1 AND 5",
+    "SELECT * FROM awards WHERE recipient_name LIKE 'A%' AND description ILIKE '%engine%' AND pop_state IS NULL AND naics_code IS NOT NULL",
+    "SELECT * FROM awards a WHERE EXISTS (SELECT 1 FROM transactions t WHERE t.award_key = a.award_key)",
+    "SELECT DISTINCT award_type FROM awards WHERE piid <> 'x' AND action_count >= 2 AND total_obligated < 3 AND fiscal_year != 4",
+    "SELECT naics_code, count(*) FROM awards GROUP BY naics_code HAVING count(*) > 1 AND sum(total_obligated) / nullif(count(*), 0) > 2",
+    "SELECT piid || ' ' || recipient_name, -total_obligated, action_count % 2, total_obligated::numeric FROM awards",
+    "SELECT * FROM awards WHERE award_type = ANY(ARRAY['DELIVERY ORDER', 'BPA CALL'])",
+    "SELECT * FROM transactions WHERE action_date >= DATE '2025-01-01' AND action_date < now() - INTERVAL '30 days'",
+    "SELECT count(DISTINCT recipient_name) FROM awards",
 ]
 
 ATTACKS = {

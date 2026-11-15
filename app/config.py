@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     pg_database: str = "copilot"
     pg_user: str | None = None
 
+    # Text-to-SQL (design 07). minimal: measured not worse than low and ~2x faster; the eval compares both.
+    sql_reasoning_effort: str = "minimal"
+    sql_max_completion_tokens: int = 3000
+    sql_timeout_s: float = 5.0
+    sql_deadline_s: float = 30.0
+
     # RAG (design 04). Starting values for the baseline, not tuned ones.
     rag_top_k: int = 8
     # RRF weight of the vector query vs BM25 (1.0 = equal). Design 05: 3.0 won on dev (hit@8 16→19/19).

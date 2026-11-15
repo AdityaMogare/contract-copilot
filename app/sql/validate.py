@@ -25,6 +25,9 @@ FORBIDDEN_NODES = (
 # Typed functions sqlglot recognises. Anything else (exp.Anonymous: pg_sleep, set_config, pg_read_file,
 # dblink, lo_import, …) is rejected. Analytics only: aggregates, math, text, dates, windows, CASE.
 ALLOWED_FUNCS = (
+    # Boolean/structural nodes that sqlglot models as Func subclasses (measured: AND was rejected as a
+    # "function" in the first live run; the model then "fixed" it by writing || instead).
+    exp.And, exp.Or, exp.Exists, exp.Array, exp.CurrentTimestamp,
     exp.Count, exp.Sum, exp.Avg, exp.Min, exp.Max, exp.Stddev, exp.Variance, exp.Median,
     exp.PercentileCont, exp.PercentileDisc, exp.ApproxDistinct, exp.CountIf,
     exp.Round, exp.Abs, exp.Floor, exp.Ceil, exp.Sqrt, exp.Pow, exp.Ln, exp.Log, exp.Mod,

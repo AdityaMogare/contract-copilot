@@ -118,3 +118,7 @@ def test_auth_required_without_config_refuses_to_start(monkeypatch):
 
 def test_ask_requires_token(authed_client):
     assert authed_client.post("/ask", json={"question": "x"}).status_code == 401
+
+
+def test_awards_query_requires_token(authed_client):
+    assert authed_client.post("/awards/query", json={"question": "x"}).status_code == 401

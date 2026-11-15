@@ -11,7 +11,7 @@ from fastapi import Depends, FastAPI  # noqa: E402
 from app.auth import require_user
 from app.clients import build_clients, close_clients
 from app.config import get_settings
-from app.routers import ask, health, smoke
+from app.routers import ask, awards, health, smoke
 
 
 @asynccontextmanager
@@ -30,3 +30,4 @@ app = FastAPI(title="Contract Intelligence Copilot", lifespan=lifespan)
 app.include_router(health.router)  # public: liveness probe, no external calls
 app.include_router(smoke.router, dependencies=[Depends(require_user)])  # Entra token required
 app.include_router(ask.router, dependencies=[Depends(require_user)])
+app.include_router(awards.router, dependencies=[Depends(require_user)])
