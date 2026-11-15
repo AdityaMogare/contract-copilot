@@ -122,3 +122,33 @@ def test_content_filter_detection():
         code = "content_filter"
     assert is_content_filter(E("x")) and is_content_filter(RuntimeError("Error code: 400 - content_filter"))
     assert not is_content_filter(RuntimeError("429 Too Many Requests"))
+
+
+class FakeDirectModel(FakeAgentModel):
+    def bind_tools(self, tools, **kw):
+        self.kw = kw
+        return self
+
+
+def _run_direct(agent, final, book):
+    usage = []
+    g = build_graph(agent, final, _tools(book), book, 6, usage, time_budget_s=30.0, direct_final=True)
+    return asyncio.run(g.ainvoke({"messages": [HumanMessage("q")], "tool_calls_used": 0, "final": None},
+                                 config={"configurable": {"thread_id": "d"}, "recursion_limit": 40})), usage
+
+
+def test_direct_final_valid_answer_skips_final_call():
+    book = SourceBook()
+    agent = FakeDirectModel([_call(), AIMessage('{"status":"answered","answer":"One year [R1].","source_ids":["R1"]}')])
+    final = FakeFinalModel([])
+    state, usage = _run_direct(agent, final, book)
+    assert state["final"]["status"] == "answered" and final.calls == 0 and len(usage) == 2
+    assert agent.kw["response_format"].__name__ == "FinalAnswer"
+
+
+def test_direct_final_invalid_ids_fall_back_to_final_step():
+    book = SourceBook()
+    agent = FakeDirectModel([_call(), AIMessage('{"status":"answered","answer":"x [D9]","source_ids":["D9"]}')])
+    final = FakeFinalModel([FinalAnswer(status="answered", answer="One year [R1].", source_ids=["R1"])])
+    state, _ = _run_direct(agent, final, book)
+    assert state["final"]["answer"] == "One year [R1]." and final.calls == 1

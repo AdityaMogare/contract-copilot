@@ -36,7 +36,8 @@ async def chat(body: ChatRequest, request: Request, settings: Settings = Depends
     tools = build_tools(clients, settings, book, thread_id)
     agent_model, final_model = make_models(clients, settings)
     graph = build_graph(agent_model, final_model, tools, book, settings.agent_tool_budget, usage,
-                        checkpointer=AsyncPostgresSaver(clients.pg_agent), time_budget_s=settings.agent_time_budget_s)
+                        checkpointer=AsyncPostgresSaver(clients.pg_agent), time_budget_s=settings.agent_time_budget_s,
+                        direct_final=settings.agent_direct_final)
     span = trace.get_current_span()
     span.set_attribute("chat.thread_id", thread_id)
     try:

@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     agent_tool_budget: int = 6
     agent_deadline_s: float = 45.0
     agent_time_budget_s: float = 30.0   # stop calling tools after this; the final step still answers
+    agent_direct_final: bool = False    # latency experiment (08): final answer from the agent call itself
 
     # RAG (design 04). Starting values for the baseline, not tuned ones.
     rag_top_k: int = 8

@@ -55,7 +55,7 @@ def score(item: dict, b: dict, calls: list[dict]) -> dict:
             "rules": rules, "invented_piids": invented, "verdict_language": verdict}
 
 
-def main(effort: str, runs: int, label: str) -> None:
+def main(effort: str, runs: int, label: str, direct_final: bool = False) -> None:
     import app.routers.chat as chat_router
     from app.config import get_settings
     from app.main import app
@@ -63,6 +63,7 @@ def main(effort: str, runs: int, label: str) -> None:
     get_settings.cache_clear()
     settings = get_settings()
     object.__setattr__(settings, "agent_reasoning_effort", effort)
+    object.__setattr__(settings, "agent_direct_final", direct_final)
     recorded: list[dict] = []
     original = chat_router.build_tools
 
@@ -100,7 +101,7 @@ def main(effort: str, runs: int, label: str) -> None:
         return f"{sum(r['correct'] for r in rs)}/{len(rs)}"
     secs = sorted(r["seconds"] for r in rows)
     summary = {
-        "effort": effort, "runs_per_question": runs,
+        "effort": effort, "direct_final": direct_final, "runs_per_question": runs,
         "far": rate({"far"}), "data": rate({"data"}), "combined": rate({"combined"}), "check": rate({"check"}),
         "out_of_scope": rate({"oos"}), "adversarial": rate({"adversarial"}), "overall": rate({r["kind"] for r in rows}),
         "routing_correct": f"{sum(r['routed'] for r in rows if r['kind'] in ('far','data','combined','check'))}/"
@@ -129,5 +130,6 @@ if __name__ == "__main__":
     ap.add_argument("--effort", default="minimal")
     ap.add_argument("--runs", type=int, default=2)
     ap.add_argument("--label", default="baseline")
+    ap.add_argument("--direct-final", action="store_true")
     a = ap.parse_args()
-    main(a.effort, a.runs, a.label)
+    main(a.effort, a.runs, a.label, a.direct_final)

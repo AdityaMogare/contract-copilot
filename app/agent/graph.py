@@ -101,17 +101,36 @@ def make_models(clients, settings):
 
 
 def build_graph(agent_model, final_model, tools, book: SourceBook, budget: int, usage: list, checkpointer=None,
-                time_budget_s: float = 30.0):
+                time_budget_s: float = 30.0, direct_final: bool = False):
     by_name = {t.name: t for t in tools}
     started = time.monotonic()   # per request: the graph is built per request
-    agent_llm = agent_model.bind_tools(tools)
+    # direct_final (latency experiment): the same call can return tool calls OR the final JSON, saving the separate
+    # final call when the answer is valid. The separate final step remains the fallback (and its retry).
+    agent_llm = (agent_model.bind_tools(tools, response_format=FinalAnswer, strict=True) if direct_final
+                 else agent_model.bind_tools(tools))
     final_llm = final_model.with_structured_output(FinalAnswer, method="json_schema", strict=True, include_raw=True)
 
     async def agent(state: AgentState):
         with tracer.start_as_current_span("agent.step") as span:
-            msg = await agent_llm.ainvoke([SystemMessage(SYSTEM), *history_for_model(state["messages"])])
+            prompt = [SystemMessage(SYSTEM), *history_for_model(state["messages"])]
+            if direct_final:
+                prompt.append(SystemMessage("When you have what you need, reply with the final answer JSON instead of "
+                                            "calling a tool. " + FINAL.format(ids=sorted(book.sources) or "none")))
+            msg = await agent_llm.ainvoke(prompt)
             span.set_attribute("agent.tool_calls", len(msg.tool_calls or []))
             usage.append(_usage(msg))
+            if direct_final and not msg.tool_calls:
+                try:
+                    f = FinalAnswer.model_validate_json(str(msg.content))
+                except ValueError:
+                    f = None
+                problem = "unparseable" if f is None else validate_final(f, set(book.sources))
+                span.set_attribute("agent.direct_final", problem or "accepted")
+                if problem is None:
+                    if f.status == "not_found":
+                        f = FinalAnswer(status="not_found", answer=NOT_FOUND_TEXT, source_ids=[])
+                    return {"messages": [AIMessage(f.answer)], "final": f.model_dump()}
+                return {"messages": [msg]}   # invalid → the separate final step (with its retry) decides
             return {"messages": [msg]}
 
     async def tools_node(state: AgentState):
@@ -133,6 +152,8 @@ def build_graph(agent_model, final_model, tools, book: SourceBook, budget: int, 
         return {"messages": results, "tool_calls_used": state["tool_calls_used"] + len(runnable)}
 
     def route(state: AgentState):
+        if state.get("final"):          # direct_final accepted a valid answer: no extra call
+            return "end"
         last = state["messages"][-1]
         # Two budgets: tool calls AND time. Measured: 6 Text-to-SQL calls blew a 45 s deadline and the user got a
         # 504 with nothing. Past the time budget, answer with what the tools already returned.
@@ -174,7 +195,7 @@ def build_graph(agent_model, final_model, tools, book: SourceBook, budget: int, 
     g.add_node("tools", tools_node)
     g.add_node("final", final)
     g.add_edge(START, "agent")
-    g.add_conditional_edges("agent", route, {"tools": "tools", "final": "final"})
+    g.add_conditional_edges("agent", route, {"tools": "tools", "final": "final", "end": END})
     g.add_edge("tools", "agent")
     g.add_edge("final", END)
     return g.compile(checkpointer=checkpointer)
