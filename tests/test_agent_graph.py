@@ -113,3 +113,12 @@ def test_validate_final_rules():
     assert validate_final(FinalAnswer(status="answered", answer="x [R1]", source_ids=[]), known) is None
     assert "not returned" in validate_final(FinalAnswer(status="answered", answer="x [C1]", source_ids=[]), known)
     assert "at least one" in validate_final(FinalAnswer(status="answered", answer="x", source_ids=[]), known)
+
+
+def test_content_filter_detection():
+    from app.routers.chat import is_content_filter
+
+    class E(Exception):
+        code = "content_filter"
+    assert is_content_filter(E("x")) and is_content_filter(RuntimeError("Error code: 400 - content_filter"))
+    assert not is_content_filter(RuntimeError("429 Too Many Requests"))

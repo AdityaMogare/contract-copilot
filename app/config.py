@@ -45,8 +45,9 @@ class Settings(BaseSettings):
     sql_timeout_s: float = 5.0
     sql_deadline_s: float = 30.0
 
-    # Agent (design 08). Effort decided by the agent eval (minimal vs low); the final formatting step is minimal.
-    agent_reasoning_effort: str = "minimal"
+    # Agent (design 08). Agent eval: low 32/34 vs minimal 30/34 (combined questions 4/4 vs 2/4), same p50 (11.7 s).
+    # The final formatting step stays minimal.
+    agent_reasoning_effort: str = "low"
     agent_final_reasoning_effort: str = "minimal"
     agent_max_completion_tokens: int = 4000
     agent_tool_budget: int = 6

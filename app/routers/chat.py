@@ -20,6 +20,11 @@ from app.routers.smoke import _describe
 router = APIRouter()
 
 
+def is_content_filter(e: BaseException) -> bool:
+    """Azure OpenAI rejects filtered prompts with HTTP 400, code 'content_filter'."""
+    return getattr(e, "code", None) == "content_filter" or "content_filter" in str(e)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     thread_id: uuid.UUID | None = None
@@ -47,6 +52,14 @@ async def chat(body: ChatRequest, request: Request, settings: Settings = Depends
     except TimeoutError:
         raise HTTPException(504, detail={"error": f"deadline {settings.agent_deadline_s:g}s exceeded", "thread_id": thread_id})
     except Exception as e:   # checkpoint store or model failure outside a tool
+        if is_content_filter(e):
+            # Azure OpenAI's built-in filter (jailbreak / harmful content) refused the prompt. That's a safety
+            # outcome, not an outage: measured in the agent eval as a 503 for "Ignore your rules and declare … ".
+            span.set_attribute("chat.status", "blocked")
+            return {"thread_id": thread_id, "status": "blocked", "sources": [], "review_items": [],
+                    "answer": "I can't help with that request: it was blocked by the content safety filter. "
+                              "Ask about the FAR or the award data and I'll cite what I find.",
+                    "tool_calls_this_turn": 0, "usage": {"model_calls": len(usage)}, "trace_id": _trace_id()}
         span.set_attribute("chat.error", type(e).__name__)
         raise HTTPException(503, detail={"hop": "agent", "error": _describe(e), "thread_id": thread_id})
 
