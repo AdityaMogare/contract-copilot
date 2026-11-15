@@ -164,7 +164,7 @@ step_5_identity() {
 # Entra-only: local (key) auth disabled after create. Custom subdomain is required for Entra tokens.
 AIS="ais-$SFX"
 AIS_LOCATION="francecentral"
-CHAT_MODEL="gpt-5-mini";             CHAT_VERSION="2025-08-07";  CHAT_TPM_K=50
+CHAT_MODEL="gpt-5-mini";             CHAT_VERSION="2025-08-07";  CHAT_TPM_K=150  # 50→150 (08): faster agent turns hit 429 at 50K during evals; per-token billing, no cost change
 EMBED_MODEL="text-embedding-3-small"; EMBED_VERSION="1";         EMBED_TPM_K=300  # 50→300 for ingestion (design 03); per-token billing, capacity is only a rate limit
 step_6_ai() {
   run 06-ais az cognitiveservices account create -g "$RG" -n "$AIS" -l "$AIS_LOCATION" \
@@ -179,6 +179,14 @@ step_6_ai() {
   run 06-deploy-embed az cognitiveservices account deployment create -g "$RG" -n "$AIS" \
     --deployment-name embed --model-format OpenAI --model-name "$EMBED_MODEL" \
     --model-version "$EMBED_VERSION" --sku-name GlobalStandard --sku-capacity "$EMBED_TPM_K" -o none
+}
+
+# Step 6c: resize `chat` only (design 08). Same idempotent ARM PUT as step 6. Measured: the agent eval hit
+# 429 rate_limit_exceeded at 50K TPM once turns got faster (~8K tokens per turn, ~7 turns/min).
+step_6c_chat_capacity() {
+  run 06c-chat-capacity az cognitiveservices account deployment create -g "$RG" -n "$AIS" \
+    --deployment-name chat --model-format OpenAI --model-name "$CHAT_MODEL" \
+    --model-version "$CHAT_VERSION" --sku-name GlobalStandard --sku-capacity "$CHAT_TPM_K" -o none
 }
 
 # Step 6b: resize `embed` only (design 03). Same ARM PUT on .../deployments/embed as step 6;

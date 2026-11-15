@@ -53,7 +53,9 @@ class Settings(BaseSettings):
     agent_tool_budget: int = 6
     agent_deadline_s: float = 45.0
     agent_time_budget_s: float = 30.0   # stop calling tools after this; the final step still answers
-    agent_direct_final: bool = False    # latency experiment (08): final answer from the agent call itself
+    # Final answer from the agent call itself (08 experiment, shipped): p50 11.75 → 8.5/8.65 s on two eval runs,
+    # -1 model call per turn; accuracy unchanged once throttling (429) and SQL-tool variance are separated out.
+    agent_direct_final: bool = True
 
     # RAG (design 04). Starting values for the baseline, not tuned ones.
     rag_top_k: int = 8
