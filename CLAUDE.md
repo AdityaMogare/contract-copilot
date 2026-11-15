@@ -26,6 +26,8 @@ Shipping fast matters, but **him understanding every hop matters more**. Optimiz
 - When you add an API call, state: method + URL shape, auth (which token, which scope),
   payload shape, and failure modes.
 - Prefer small, reviewable commits. One concept per commit. Commit messages explain *why*.
+- Aditya is the only author. No `Co-Authored-By` trailers, "Generated with Claude Code"
+  lines, or any Claude/AI attribution in commit messages or PR descriptions.
 
 ## Engineering rules
 - Python 3.12, `uv`, FastAPI, Pydantic v2, `pydantic-settings` for config.
