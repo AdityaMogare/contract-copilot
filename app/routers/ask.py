@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from app.config import Settings, get_settings
 from app.rag.answer import generate
 from app.rag.retrieve import HopError, embed_query, hybrid_search
+from app.errors import BLOCKED_TEXT, is_content_filter
 from app.routers.smoke import _describe
 
 router = APIRouter()
@@ -60,6 +61,11 @@ async def ask(body: AskRequest, request: Request, settings: Settings = Depends(g
     except TimeoutError:
         raise HTTPException(504, detail={"error": f"deadline {settings.rag_deadline_s:g}s exceeded"})
     except HopError as e:
+        if is_content_filter(e.cause):
+            span.set_attribute("rag.status", "blocked")
+            return AskResponse(status="blocked", answer=BLOCKED_TEXT, citations=[], retrieved=0,
+                               usage=AskUsage(prompt_tokens=0, completion_tokens=0, reasoning_tokens=0, attempts=0),
+                               trace_id=_trace_id())
         span.set_attribute("rag.failed_hop", e.hop)
         raise HTTPException(503, detail={"hop": e.hop, "error": _describe(e.cause)})
 

@@ -116,7 +116,7 @@ def test_validate_final_rules():
 
 
 def test_content_filter_detection():
-    from app.routers.chat import is_content_filter
+    from app.errors import is_content_filter
 
     class E(Exception):
         code = "content_filter"

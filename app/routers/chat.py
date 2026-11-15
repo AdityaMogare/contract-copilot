@@ -15,14 +15,10 @@ from app.agent.graph import SOURCE_ID, build_graph, make_models
 from app.agent.tools import SourceBook, build_tools
 from app.config import Settings, get_settings
 from app.routers.ask import _trace_id
+from app.errors import BLOCKED_TEXT, is_content_filter
 from app.routers.smoke import _describe
 
 router = APIRouter()
-
-
-def is_content_filter(e: BaseException) -> bool:
-    """Azure OpenAI rejects filtered prompts with HTTP 400, code 'content_filter'."""
-    return getattr(e, "code", None) == "content_filter" or "content_filter" in str(e)
 
 
 class ChatRequest(BaseModel):
@@ -57,8 +53,7 @@ async def chat(body: ChatRequest, request: Request, settings: Settings = Depends
             # outcome, not an outage: measured in the agent eval as a 503 for "Ignore your rules and declare … ".
             span.set_attribute("chat.status", "blocked")
             return {"thread_id": thread_id, "status": "blocked", "sources": [], "review_items": [],
-                    "answer": "I can't help with that request: it was blocked by the content safety filter. "
-                              "Ask about the FAR or the award data and I'll cite what I find.",
+                    "answer": BLOCKED_TEXT,
                     "tool_calls_this_turn": 0, "usage": {"model_calls": len(usage)}, "trace_id": _trace_id()}
         span.set_attribute("chat.error", type(e).__name__)
         raise HTTPException(503, detail={"hop": "agent", "error": _describe(e), "thread_id": thread_id})
