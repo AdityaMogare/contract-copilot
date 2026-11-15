@@ -50,10 +50,12 @@ async def hybrid_search(clients: Clients, settings: Settings, question: str, vec
     with tracer.start_as_current_span("search") as span:
         span.set_attribute("search.index", settings.search_index)
         span.set_attribute("search.top", settings.rag_top_k)
+        span.set_attribute("search.vector_weight", settings.rag_vector_weight)
         try:
             results = await clients.docs.search(
                 search_text=question,                                  # BM25 side
-                vector_queries=[VectorizedQuery(vector=vector, k_nearest_neighbors=50, fields="content_vector")],
+                vector_queries=[VectorizedQuery(vector=vector, k_nearest_neighbors=50, fields="content_vector",
+                                                weight=settings.rag_vector_weight)],
                 filter=f"part eq '{part}'" if part else None,          # part is validated as digits (router)
                 select=["id", "citation", "url", "content"],
                 top=settings.rag_top_k,

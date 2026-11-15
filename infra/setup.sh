@@ -200,7 +200,7 @@ step_7_search() {
 # far-chunks-v2 and repoints this alias, with no app redeploy. NOT an ARM call: aliases are a
 # Search data-plane object (PUT {endpoint}/aliases/{name}), so the token is for
 # https://search.azure.com and the role is Search Service Contributor (me).
-SEARCH_ALIAS="far-chunks"; SEARCH_INDEX_VERSION="far-chunks-v1"
+SEARCH_ALIAS="far-chunks"; SEARCH_INDEX_VERSION="${SEARCH_INDEX_VERSION:-far-chunks-v2}"   # design 05: v2 won on held-out
 step_7b_alias() {
   run 07b-alias az rest --method put --resource https://search.azure.com \
     --url "https://$SRCH.search.windows.net/aliases/$SEARCH_ALIAS?api-version=2026-10-01" \

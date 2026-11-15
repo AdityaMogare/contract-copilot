@@ -90,7 +90,7 @@ def write_report(label: str, settings, rows: list[dict], summary: dict) -> Path:
     (out.with_suffix(".jsonl")).write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     lines = [f"# Eval: {label} ({date.today().isoformat()})", "",
              f"Config: index alias `{settings.search_index}`, top_k={settings.rag_top_k}, "
-             f"reasoning_effort={settings.rag_reasoning_effort}, chat=`{settings.chat_deployment}`, "
+             f"reasoning_effort={settings.rag_reasoning_effort}, vector_weight={settings.rag_vector_weight}, chat=`{settings.chat_deployment}`, "
              f"embed dims={settings.embed_dimensions}. Golden set: `evals/golden.jsonl`.", "",
              "| Metric | Value |", "|---|---|", *[f"| {k} | {v} |" for k, v in summary.items()], "",
              "| id | answerable | status | retrieval hit | citation hit | s | expected | cited |",
@@ -105,9 +105,9 @@ def write_report(label: str, settings, rows: list[dict], summary: dict) -> Path:
     return out.with_suffix(".md")
 
 
-async def main(label: str) -> None:
+async def main(label: str, which: str) -> None:
     settings = get_settings()
-    items = [json.loads(line) for line in (ROOT / "golden.jsonl").read_text().splitlines() if line.strip()]
+    items = [json.loads(line) for line in (ROOT / {"dev": "golden.jsonl", "heldout": "heldout.jsonl"}[which]).read_text().splitlines() if line.strip()]
     clients = build_clients(settings)
     rows = []
     try:
@@ -126,4 +126,6 @@ async def main(label: str) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", default="baseline")
-    asyncio.run(main(ap.parse_args().label))
+    ap.add_argument("--set", choices=["dev", "heldout"], default="dev")
+    a = ap.parse_args()
+    asyncio.run(main(a.label, a.set))

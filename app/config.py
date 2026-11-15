@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # The app queries the ALIAS; ingestion creates/writes the versioned index behind it.
     # A schema change builds v2, then repoints the alias (design 04, infra step 7b).
     search_index: str = "far-chunks"
-    search_index_version: str = "far-chunks-v1"
+    search_index_version: str = "far-chunks-v2"   # design 05
     # Must match at ingest AND query time, or Search rejects the vector (design 03 §4).
     embed_dimensions: int = 512
     key_vault_url: AnyHttpUrl
@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     # RAG (design 04). Starting values for the baseline, not tuned ones.
     rag_top_k: int = 8
+    # RRF weight of the vector query vs BM25 (1.0 = equal). Design 05: 3.0 won on dev (hit@8 16→19/19).
+    rag_vector_weight: float = 3.0
     rag_reasoning_effort: str = "low"
     rag_max_completion_tokens: int = 2000
     rag_deadline_s: float = 25.0
