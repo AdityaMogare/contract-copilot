@@ -11,6 +11,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] First deploy to Container Apps; /smoke green on live URL (app-level Entra JWT auth; express env)
 - [x] FAR ingestion: 4,065 clause-aware chunks in `far-chunks-v1` (17.49 MB of 50 MB), incremental re-run embeds 0
 - [x] `POST /ask` live behind Entra auth; App Insights traces via MI + Entra; golden-set baseline: retrieval hit@8 16/19, correct IDK 6/6, false IDK 0/19
+- [x] Retrieval tuning (design 05): held-out hit@8 7/10 → 9/10, false IDK 1/10 → 0/10; live on `far-chunks-v2` + vector weight 3
 
 ## Decisions
 | Date | Decision | Why |
@@ -31,6 +32,8 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | Model cites by source number; server maps to citations | Citations can't be invented; validated in code |
 | 2026-11-14 | App Insights local auth off; MI + me get Monitoring Metrics Publisher | No keys: the connection string can't write telemetry by itself |
 | 2026-11-14 | App queries alias `far-chunks`; ingestion writes `far-chunks-v1` | Index rebuilds become an alias swap, not a redeploy |
+| 2026-11-14 | Tuning judged on a sealed held-out set; "after" config pre-registered | Avoid reporting numbers tuned on the questions they're measured on |
+| 2026-11-14 | One chunk per definition; hybrid with vector weight 3 (not vector-only) | E2 fixed definition misses; dev set doesn't test exact identifiers, which BM25 covers |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
@@ -38,4 +41,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 - 02 open: cold-start measurement, logs → Log Analytics, break-it, quiz
 - 03 open: break-it drills (1536-dim query, remove index-write role), quiz, 30-second explanation
 - 04 open: Aditya reviews golden set; break-it drills (throttle chat, DFARS question, prompt injection); quiz; 30-second explanation
-- Next: retrieval tuning before/after on the golden set (parent-section title in header, 2.101 per-definition chunks), or Week 2 (USAspending → Postgres)
+- 05 open: decide u03 label (AFFARS question answered as grounded `partial`); delete `far-chunks-v1` once v2 is trusted (needs OK); quiz
+- Next: Week 2 (USAspending → Postgres, Text-to-SQL) or the open break-it drills

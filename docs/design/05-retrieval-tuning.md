@@ -96,11 +96,67 @@ competition"); flags off ⇒ chunks identical to v1 (hash-equal), proving the A/
 
 ---
 ## After building
-### Results (dev, retrieval-only)
--
-### Results (held-out, before vs after, end to end)
--
+### Results (dev, retrieval-only, 19 answerable; reports in `evals/reports/2026-11-14-retrieval-dev-*.md`)
+| # | Index | Query | hit@3 | hit@5 | hit@8 | hit@12 | MRR | Misses (rank) |
+|---|---|---|---|---|---|---|---|---|
+| E0 | v1 | **hybrid (production)** | 13 | 15 | 16 | 17 | 0.664 | g06 –, g10 –, g15 10 |
+| E0 | v1 | BM25 only | 12 | 13 | 13 | 13 | 0.563 | 6 misses |
+| E0 | v1 | vector only | 15 | 18 | 18 | 18 | 0.800 | g06 – |
+| E0b | v1 | hybrid, vector weight 2 | 14 | 16 | 18 | 18 | 0.696 | g06 – |
+| E0b | v1 | hybrid, vector weight 3 | 15 | 16 | 18 | 18 | 0.731 | g06 – |
+| E1 | v2 (parent title) | hybrid | 12 | 14 | 16 | 18 | 0.654 | g06 –, g10 12, g15 10 |
+| E1 | v2 (parent title) | hybrid, vw 3 | 15 | 16 | 18 | 18 | 0.706 | g06 – |
+| E1 | v2 (parent title) | vector | 15 | 17 | 18 | 18 | 0.796 | g06 – |
+| E1+E2 | v2 (+ definition chunks) | hybrid | 13 | 14 | 17 | 19 | 0.668 | g10 12, g15 10 |
+| **E1+E2** | **v2** | **hybrid, vw 3 (shipped)** | **17** | **18** | **19** | 19 | **0.768** | none |
+| E1+E2 | v2 | vector | 17 | 18 | 19 | 19 | 0.890 | none |
+
+What each experiment did:
+- **E0 (not predicted):** BM25 was the weak half. Equal-weight RRF let keyword noise on natural-language
+  questions push correct vector hits out of the top 8. Vector-only beat hybrid.
+- **E0b:** weighting the vector query ×2–3 recovered g10 and g15 while keeping BM25 in the mix.
+- **E1 (parent title): neutral.** g10 went from absent to rank 12 under plain hybrid, nothing else moved;
+  MRR changes are within noise. Kept because it costs nothing and helps the LLM read split-off chunks,
+  but it is **not** a measured retrieval win.
+- **E2 (one chunk per definition): the win.** g06 fixed in every mode. Applied to every section with ≥ 5
+  defined terms (not just 2.101): 4,068 → 6,442 chunks; incremental rebuild re-embedded only 2,670 (268K tokens).
+- **E3 (top_k 12): not run.** With E1+E2+vw3 every dev question hits within 8, so there was nothing for it to fix.
+
+**Pre-registered before opening the held-out set** (commit "pre-register the 'after' config"):
+v2 + hybrid with vector weight 3. Not vector-only, despite its higher dev MRR: the dev set has no
+exact-identifier questions ("what does 52.219-14 require?"), which is what BM25 is for.
+
+### Results (held-out, before vs after, end to end; `evals/reports/2026-11-14-heldout-{before,after}.md`)
+| Held-out (10 answerable + 2 unanswerable) | Before: v1, hybrid | After: v2, hybrid vw 3 |
+|---|---|---|
+| Retrieval hit@8 (retrieval-only eval) | 7/10, MRR 0.575 | **9/10, MRR 0.772** |
+| Expected section cited | 7/10 | **9/10** |
+| False "I don't know" | 1/10 | **0/10** |
+| Correct "I don't know" | 2/2 | 2/2 |
+| Latency p50 / p95 | 3.37 s / 5.98 s | 3.60 s / 6.85 s (within noise) |
+| Avg prompt tokens | 3,719 | **3,215** (definition chunks are shorter) |
+
+Remaining held-out miss: h04 (16.301-3 "Limitations" of cost-reimbursement contracts), rank 11.
+
+**Dev end to end with the shipped config** (`2026-11-14-dev-after.md`): retrieval 19/19, citation hit 19/19,
+false IDK 0/19, **correct IDK 5/6** (was 6/6). u03 (AFFARS 5306.304 approvals) became a grounded `partial`:
+"The provided sources do not include AFFARS 5306.304", followed by the FAR 6.304 approval levels with
+citations. Not a hallucination, but it doesn't match the golden label; the label is left for Aditya's
+golden-set review rather than changed after seeing the result.
+
+**Shipped:** `rag_vector_weight=3` + image `5eead46`, then alias `far-chunks` → `far-chunks-v2`
+(`PUT /aliases` → 204). Live: "What is the simplified acquisition threshold?" → `answered`, $350,000,
+`FAR 2.101 ("Simplified acquisition threshold")`. Rollback = `SEARCH_INDEX_VERSION=far-chunks-v1 ./infra/setup.sh 7b`.
+`far-chunks-v1` kept for rollback (Search storage 39.2 MB / 50 MB with both); deleting it needs Aditya's OK.
+
 ### Trace vs prediction
--
+| Predicted | Observed |
+|---|---|
+| Hybrid ≥ BM25 and ≥ vector (E0) | **Vector-only beat hybrid** (dev MRR 0.80 vs 0.66). Fixed by weighting, not by dropping BM25 |
+| E1 fixes g10 | Neutral; g10 was fixed by the vector weight, not the header |
+| E2 adds ~200 chunks for 2.101 + a few sections | +2,374 chunks: many parts have a "Definitions" section with ≥ 5 terms |
+| Second index ≈ 35–37 MB total | 39.2 MB (v2 is 22.5 MB: more, shorter chunks) |
+| Definition detector: `<I>Term</I> means` | 214/235 at first; aliases ("*Agency head* or *head of the agency* means"), statute cites and "as defined in" forms needed a looser rule → 235/235 |
+| Vector index counts toward a quota | Still `null` on Free; vector size 66 MB with two indexes, no error |
 ### 30-second explanation
 -
