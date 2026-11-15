@@ -190,6 +190,11 @@ same 20 questions I report is the overfitting design 05 avoids. Candidates for a
 | Hops: chat → validate → postgres | Live: chat 4,080 ms, validate 7 ms, postgres 16 ms; **first request after deploy +1,388 ms `schema_card.build`** (incl. `GET /msi/token` 114 ms for the ossrdbms scope), invisible until a span was added | psycopg isn't auto-instrumented; manual span |
 | "Contractor" = one name | `LOCKHEED MARTIN CORPORATION` and `LOCKHEED MARTIN CORP` are separate recipient names | Data quality limit; entity resolution is future work |
 
+### Correction (2026-11-15, found while designing 10)
+The `postgres` span's `db.statement` / `db.rows` attributes do **not** reach App Insights: the Azure Monitor exporter
+drops them on these internal spans (`customDimensions` and `data` are empty). The SQL is visible in the API response
+and the audit log (10), not in telemetry.
+
 ### Break-it results
 Local, connected as the Postgres **admin** (`azure_pg_admin`), executor called directly (validator bypassed):
 | Drill | Validator | Database (layer 3) |

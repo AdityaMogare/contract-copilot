@@ -262,6 +262,36 @@ step_8_roles() {
   assign 08-roles-me "$me" User "Monitoring Metrics Publisher"    "$appi"
 }
 
+# Step 8b (design 10): custom role "Copilot Guardrails Caller" with exactly the 3 data actions guardrails need.
+# The only built-in that covers them, Cognitive Services User, grants Microsoft.CognitiveServices/* data actions
+# plus listkeys. ARM: PUT /subscriptions/<sub>/providers/Microsoft.Authorization/roleDefinitions/<guid>
+# (assignable only inside our RG), then role assignments on ais-<sfx> for me and the app MI.
+# Run by Aditya: identity/permission changes aren't made by the coding assistant.
+GUARD_ROLE="Copilot Guardrails Caller"
+step_8b_guardrails_role() {
+  local rg_id ais me app def
+  rg_id="$(az group show -n "$RG" --query id -o tsv)"
+  if [[ -z "$(az role definition list --custom-role-only true --name "$GUARD_ROLE" --query '[0].id' -o tsv)" ]]; then
+    def="$(mktemp)"
+    cat > "$def" <<JSON
+{ "Name": "$GUARD_ROLE",
+  "Description": "Call Azure AI Content Safety prompt shields / text analysis and Language PII detection. Nothing else.",
+  "Actions": [], "NotActions": [],
+  "DataActions": ["Microsoft.CognitiveServices/accounts/ContentSafety/text:shieldprompt/action",
+                  "Microsoft.CognitiveServices/accounts/ContentSafety/text:analyze/action",
+                  "Microsoft.CognitiveServices/accounts/Language/analyze-text/action"],
+  "NotDataActions": [], "AssignableScopes": ["$rg_id"] }
+JSON
+    run 08b-guard-role az role definition create --role-definition "@$def" -o none
+    rm -f "$def"
+  fi
+  ais="$(az cognitiveservices account show -g "$RG" -n "$AIS" --query id -o tsv)"
+  me="$(az ad signed-in-user show --query id -o tsv)"
+  app="$(az identity show -g "$RG" -n "$ID_APP" --query principalId -o tsv)"
+  assign 08b-guard-roles "$me" User "$GUARD_ROLE" "$ais"
+  assign 08b-guard-roles "$app" ServicePrincipal "$GUARD_ROLE" "$ais"
+}
+
 # Step 9 (design 06): PostgreSQL Flexible Server, Burstable B1ms, PG16. COST: $0.0185/hour ≈ $13.50/month
 # while RUNNING (+ storage, billed even when stopped). Stop when idle: `./infra/setup.sh 9z`; Azure auto-starts
 # a stopped server after 7 days. ARM: PUT Microsoft.DBforPostgreSQL/flexibleServers/pg-<sfx> (async, minutes).
