@@ -14,6 +14,7 @@ from __future__ import annotations
 import sys
 
 from azure.identity import DefaultAzureCredential
+import psycopg
 from psycopg import sql
 
 from app.config import get_settings
@@ -39,7 +40,40 @@ def grant_app(principal: str) -> None:
         print(f"{principal}: copilot_reader={row[0]} config={row[1]}")
 
 
+def setup_agent(principal: str) -> None:
+    """Design 08 / infra step 9d: schema agent, role copilot_agent, review queue, LangGraph checkpoint tables,
+    then GRANT copilot_agent to the app MI. Runs as the Entra admin; the app never runs DDL."""
+    from pathlib import Path
+
+    from langgraph.checkpoint.postgres import PostgresSaver
+    from psycopg.rows import dict_row
+
+    settings = get_settings()
+    cred = DefaultAzureCredential()
+    with connect_as_me(settings, cred) as conn:
+        conn.autocommit = True
+        conn.execute(Path(__file__).with_name("agent_schema.sql").read_text())
+    # LangGraph's migrations use unqualified table names (→ search_path) and CREATE INDEX CONCURRENTLY
+    # (→ must be autocommit, outside a transaction).
+    token = cred.get_token("https://ossrdbms-aad.database.windows.net/.default").token
+    with psycopg.connect(host=settings.pg_host, dbname=settings.pg_database, user=settings.pg_user, password=token,
+                         sslmode="require", autocommit=True, row_factory=dict_row,
+                         options="-c search_path=agent -c statement_timeout=0") as conn:
+        PostgresSaver(conn).setup()
+    with connect_as_me(settings, cred) as conn:
+        conn.autocommit = True
+        conn.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA agent TO copilot_agent")
+        conn.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA agent TO copilot_agent")
+        conn.execute(sql.SQL("GRANT copilot_agent TO {}").format(sql.Identifier(principal)))
+        tables = [r[0] for r in conn.execute(
+            "SELECT tablename FROM pg_tables WHERE schemaname = 'agent' ORDER BY 1").fetchall()]
+        member = conn.execute("SELECT pg_has_role(%s, 'copilot_agent', 'member'), "
+                              "has_table_privilege(%s, 'public.awards', 'INSERT')", (principal, principal)).fetchone()
+        print(f"agent tables={tables}; {principal}: copilot_agent={member[0]} can_insert_awards={member[1]}")
+
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3 or sys.argv[1] != "grant-app":
-        sys.exit("usage: python -m awards.admin grant-app <managed-identity-name>")
-    grant_app(sys.argv[2])
+    commands = {"grant-app": grant_app, "setup-agent": setup_agent}
+    if len(sys.argv) != 3 or sys.argv[1] not in commands:
+        sys.exit("usage: python -m awards.admin {grant-app|setup-agent} <managed-identity-name>")
+    commands[sys.argv[1]](sys.argv[2])

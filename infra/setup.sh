@@ -294,6 +294,12 @@ step_9c_pg_app() {
   run_py 09c-pg-app uv run python -m awards.admin grant-app "$ID_APP"
 }
 
+# Step 9d (design 08): schema agent (LangGraph checkpoints + review queue), role copilot_agent (DML on agent.*
+# only), granted to the app MI. Award data stays unwritable: no role the MI holds has write privileges on it.
+step_9d_pg_agent() {
+  run_py 09d-pg-agent uv run python -m awards.admin setup-agent "$ID_APP"
+}
+
 # Step 9z: stop Postgres to stop compute billing (storage still bills). Start again with 9y.
 step_9z_pg_stop()  { run 09z-pg-stop  az postgres flexible-server stop  -g "$RG" -n "$PG" -o none; }
 step_9y_pg_start() { run 09y-pg-start az postgres flexible-server start -g "$RG" -n "$PG" -o none; }
