@@ -194,6 +194,22 @@ the table above counts them as failures, and the 503 is now a 200 `blocked` (bel
 | LangGraph checkpoint setup at app start | Migrations need `search_path=agent` and autocommit (`CREATE INDEX CONCURRENTLY`), so DDL runs once as admin (step 9d) | The app never runs DDL |
 | Follow-ups need the full tool history | Prior turns sent as question + answer only, old `[D1]` markers stripped (ids are per turn) | Live follow-up "of those, which contractor…" → L3Harris $1,125,048,455.11 (= direct SQL) |
 
+### Latency experiment: final answer from the agent call itself (`agent_direct_final`, shipped)
+Pre-registered ship rule (commit "agent_direct_final experiment flag"): overall ≥ 32/34, combined 4/4, 0 invented PIIDs,
+0 verdicts, p50 ≥ 2 s faster than agent-baseline-low.
+| | Baseline (low) | Direct-final run 1 | Direct-final rerun |
+|---|---|---|---|
+| Overall | 32/34 (2 × a17 content-filter 503) | 32/34 | 32/34 |
+| Failures | a17 ×2 (now `blocked`) | a04, a05: 503 (detail discarded) | a05: **503 = 429 rate_limit_exceeded**; a08: SQL tool counted 1 instead of 647 |
+| Latency p50 / p95 | 11.75 / 21.9 s | **8.5** / 18.7 s | **8.65** / 17.2 s |
+| Model calls per turn | 2.76 | 1.76 | 1.85 |
+- Like for like, a17's fix masked two new failures in run 1, so I didn't ship on run 1. 18 targeted retries of a04/a05
+  were clean; the runner was fixed to keep error bodies; the rerun showed **throttling**: faster turns (~8K tokens each,
+  ~7/min) exceed the 50K TPM `chat` deployment during an eval. `chat` raised to **150K TPM** (step 6c, no cost change).
+- a08's miss is Text-to-SQL variance (07: 90% runs correct); the agent reported the tool's wrong number faithfully.
+  That's an argument for SQL tuning with a held-out set, not against this change.
+- Live after deploy: the combined urgency question 12.2–13.1 s (was 15–22 s), correct.
+
 ### Break-it results
 | Drill | Result |
 |---|---|

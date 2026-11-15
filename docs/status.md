@@ -46,6 +46,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-15 | Competition check = deterministic FAR-cited rules → review items; LLM only explains | Auditable, testable, never a legal verdict |
 | 2026-11-15 | One tool-calling agent with call (6) and time (30 s) budgets + forced final step | Probe: loops, empty answers at the cap; a 6-call turn hit the 45 s deadline |
 | 2026-11-15 | Memory + review queue in schema `agent`, second pool, same MI | Privileges keep award data unwritable; a second identity is the production answer |
+| 2026-11-15 | Agent answers directly from its last call (direct-final); `chat` 150K TPM | p50 −3.1 s on two eval runs; 429s at 50K TPM once turns got faster; capacity is free |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
@@ -56,5 +57,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 - 05 open: decide u03 label (AFFARS question answered as grounded `partial`); delete `far-chunks-v1` once v2 is trusted (needs OK); quiz
 - 06 open: quiz; drill "remove the MI principal"; decide whether to add FY2024
 - 07 open: SQL prompt tuning needs a held-out SQL set first (NULL handling, total-vs-breakdown); quiz
-- 08 open: content-filter → `blocked` also for /ask and /awards/query; latency (4 sequential LLM calls ≈ 14.7 s): try merging the 'done' step with the final answer; Postgres stop/resume drill; quiz
+- 08 open: Postgres stop/resume drill; quiz. Done since: content filter → `blocked` on all endpoints; direct-final (p50 11.75 → ~8.6 s); chat 150K TPM
 - Next: 10 guardrails (Content Safety prompt shields, PII masking, audit log) or 12 CI/CD eval gate
