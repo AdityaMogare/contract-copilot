@@ -107,3 +107,9 @@ Format: symptom → where it showed up → root cause → fix.
 - **Root cause:** my command chain `commit && deploy.sh …; setup.sh 13` — a bad grep (`$ID_APP` read as a regex anchor) stopped the chain before commit+deploy, but step 13 (after `;`) still ran with the HEAD tag, which had never been pushed. The update **failed but still replaced the app's template**: the env vars landed and the single revision pointed at the missing image.
 - **Fix:** commit → `deploy.sh` (build + push `6eeb721` + update image) → Healthy; live `/smoke` 6/6.
 - **Lessons:** (1) step 13 must verify the image tag exists in ACR before updating (`az acr repository show-tags`); (2) in single-revision mode a failed update is not a no-op; (3) chain deploy steps with `&&` only.
+
+## 2026-11-15 – Text-to-SQL validator rejected `AND`; the model "fixed" it with `||`
+- **Symptom:** first live `/awards/query` → `rejected`: "function not allowed: and"; on another question the repair produced `WHERE fiscal_year = 2025 || extent_competed_code = 'A' || …` → PostgreSQL 42601.
+- **Root cause:** sqlglot represents `And`, `Or`, `Exists`, `Array`, `CurrentTimestamp` as subclasses of `exp.Func`, so a function allowlist treats AND as a function. My safe-SQL tests had no multi-predicate WHERE, so they passed. The repair turn passes the validator's reason to the model, and a wrong reason gets a creative wrong fix.
+- **Fix:** collected every Func node from a corpus of ordinary SQL, allowlisted the structural ones, added 10 ordinary-predicate queries to the must-pass tests.
+- **Lesson:** test an allowlist with realistic *valid* input as hard as with attacks; false positives are a reliability bug and, via repair loops, a correctness bug.

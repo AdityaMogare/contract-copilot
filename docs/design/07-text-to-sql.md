@@ -158,13 +158,45 @@ allowed tables, ILIKE), LIMIT rewriting, schema-card rendering from fake rows, r
 
 ---
 ## After building
-### SQL eval baseline
--
+### SQL eval baseline (2026-11-15; `evals/reports/2026-11-15-sql-baseline-{minimal,low}.md`)
+20 answerable questions with hand-written gold SQL (results computed before any model run), 5 not-answerable,
+6 adversarial; 3 runs each; scoring fixed in the committed runner before results.
+
+| | `minimal` | **`low` (shipped)** |
+|---|---|---|
+| Answerable runs correct | 46/60 (77%) | **54/60 (90%)** |
+| Questions correct in all 3 runs | 12/20 | **17/20** |
+| Questions correct in ≥ 1 run | 18/20 | 19/20 |
+| Not-answerable → `not_answerable` | 15/15 | 15/15 |
+| Adversarial handled safely | 18/18 | 18/18 (a06 → harmless `COUNT(*)`, injected `DROP` ignored) |
+| Data intact after 186 runs | yes | yes |
+| Repairs triggered (validator / DB error / 0 rows) | 0 | 0 |
+| Latency p50 / p95 | 2.66 / 3.77 s | 4.11 / 5.77 s |
+
+**Failure patterns (semantic, never unsafe):** NULL treated as a category ("state with most awards" → NULL, s14,
+both efforts); breakdown instead of a total (s18 Boeing, both); over-grouping by contractor and false
+"not answerable" (minimal); an invented code value `'DELIVERY_ORDER'` vs the listed `'DELIVERY ORDER'` (low, 1 run).
+**Not fixed here on purpose:** prompt fixes for NULL handling and "total vs breakdown" are obvious, but tuning on the
+same 20 questions I report is the overfitting design 05 avoids. Candidates for a tuning round with a held-out SQL set.
+
 ### Trace vs prediction
--
-### Break-it results (planned)
-- Adversarial question set through the live endpoint → every case `not_answerable` or `rejected`, none executes
-- Bypass the validator in a test build → DB layer alone blocks the write (25006) and the read of `load_runs` (42501)
-- Heavy cross join → 57014 after 5 s, endpoint returns `error`, not a hung request
+| Predicted | Observed | Why it matters |
+|---|---|---|
+| Allowlist of function classes is enough | **sqlglot models AND/OR/EXISTS/ARRAY/now() as `Func` subclasses**: the first live run rejected `AND` as "function not allowed: and", and the repair turn then replaced AND with `\|\|` (string concat) → syntax error | Validator safe-set tests now include ordinary predicates; a misleading error message produces creatively wrong repairs |
+| sqlglot output = the input | sqlglot **keeps comments** (`/* ; DROP TABLE awards */`) | Output rendered with `comments=False` |
+| `date_trunc` → `DateTrunc` | postgres dialect gives `TimestampTrunc` | Allowlist entry added |
+| minimal ≈ low on accuracy (6-question probe) | low 54/60 vs minimal 46/60 | Small probes mislead; the eval decides |
+| Repair loop catches common errors | 0 repairs in 186 runs once the validator was right | The loop is insurance, not the accuracy driver |
+| Hops: chat → validate → postgres | Live: chat 4,080 ms, validate 7 ms, postgres 16 ms; **first request after deploy +1,388 ms `schema_card.build`** (incl. `GET /msi/token` 114 ms for the ossrdbms scope), invisible until a span was added | psycopg isn't auto-instrumented; manual span |
+| "Contractor" = one name | `LOCKHEED MARTIN CORPORATION` and `LOCKHEED MARTIN CORP` are separate recipient names | Data quality limit; entity resolution is future work |
+
+### Break-it results
+Local, connected as the Postgres **admin** (`azure_pg_admin`), executor called directly (validator bypassed):
+| Drill | Validator | Database (layer 3) |
+|---|---|---|
+| `DELETE FROM awards` | rejects | **25006** read-only transaction |
+| `SELECT * FROM load_runs` | rejects | **42501** permission denied (`SET LOCAL ROLE copilot_reader` drops admin rights) |
+| `SELECT count(*) FROM transactions a, transactions b` | **accepts** (valid, safe SQL) | **57014** cancelled at 5.5 s |
+Live: no token → 401; "6.302-1 incl. subparagraphs" → 7,788 (= gold); "everything in load_runs" → `not_answerable`.
 ### 30-second explanation
 -

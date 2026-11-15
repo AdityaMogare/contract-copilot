@@ -14,6 +14,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Retrieval tuning (design 05): held-out hit@8 7/10 → 9/10, false IDK 1/10 → 0/10; live on `far-chunks-v2` + vector weight 3
 - [x] Award data (design 06): FY2025 Air Force contracts in Postgres (105,408 transactions, 56,832 awards); app reads as MI, read-only; live `/smoke` 6/6
 - [x] Public repo: https://github.com/AdityaMogare/contract-copilot
+- [x] Text-to-SQL (design 07): `POST /awards/query` live; SQL eval 54/60 runs correct (low effort), 15/15 not-answerable, 18/18 adversarial safe
 
 ## Decisions
 | Date | Decision | Why |
@@ -39,6 +40,8 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-14 | Postgres B1ms, Entra-only auth, public endpoint gated by allow-azure + my IP | Express ACA env has no outbound IPs/VNet; no passwords exist to attack. Stop when idle (`setup.sh 9z`) |
 | 2026-11-14 | Read-only + timeout on the MI's login role and per session | Postgres doesn't apply group-role settings to members |
 | 2026-11-14 | Public GitHub repo; personal identifiers removed from tracked files, history kept | Portfolio + Week 3 CI needs GitHub; rewriting history would break SHA image tags |
+| 2026-11-15 | Text-to-SQL: 4 independent layers (prompt, whole-tree sqlglot allowlist, read-only txn as copilot_reader + 5 s, DB role) | Each alone stops a write; drills showed the timeout is the only layer that stops valid-but-expensive SQL |
+| 2026-11-15 | SQL reasoning_effort low, not minimal | Eval: 54/60 vs 46/60; the 6-question probe pointed the other way |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
@@ -48,4 +51,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 - 04 open: Aditya reviews golden set; break-it drills (throttle chat, DFARS question, prompt injection); quiz; 30-second explanation
 - 05 open: decide u03 label (AFFARS question answered as grounded `partial`); delete `far-chunks-v1` once v2 is trusted (needs OK); quiz
 - 06 open: quiz; drill "remove the MI principal"; decide whether to add FY2024
-- Next: 07 Text-to-SQL (`query_contracts`) on the awards schema
+- 07 open: SQL prompt tuning needs a held-out SQL set first (NULL handling, total-vs-breakdown); quiz
+- Next: 08 LangGraph agent + competition check (design first)
