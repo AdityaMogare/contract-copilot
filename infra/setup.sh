@@ -286,6 +286,13 @@ step_9_postgres() {
   run 09-blob az storage container create --account-name "$ST" -n usaspending-raw --auth-mode login -o none
 }
 
+# Step 9c (design 06): the app MI's Postgres login, read-only. Runs SQL as the Entra admin (me):
+# pgaadauth_create_principal('id-app-<sfx>') → GRANT copilot_reader → role-level read-only + 5 s timeout.
+# Needs the awards schema first (the loader creates copilot_reader).
+step_9c_pg_app() {
+  run_py 09c-pg-app uv run python -m awards.admin grant-app "$ID_APP"
+}
+
 # Step 9z: stop Postgres to stop compute billing (storage still bills). Start again with 9y.
 step_9z_pg_stop()  { run 09z-pg-stop  az postgres flexible-server stop  -g "$RG" -n "$PG" -o none; }
 step_9y_pg_start() { run 09y-pg-start az postgres flexible-server start -g "$RG" -n "$PG" -o none; }
@@ -404,6 +411,7 @@ step_13_app() {
     AUTH_REQUIRED=true AUTH_TENANT_ID="$tenant" AUTH_AUDIENCE="$app_id"
     SEARCH_INDEX="$SEARCH_ALIAS"                                    # design 04: query the alias
     APPLICATIONINSIGHTS_CONNECTION_STRING="$appi_conn" OTEL_SERVICE_NAME=copilot-api
+    PG_HOST="$PG.postgres.database.azure.com" PG_DATABASE="$PG_DB" PG_USER="$ID_APP"   # design 06: MI's Entra name
   )
 
   if ! az containerapp show -g "$RG" -n "$CA" -o none 2>/dev/null; then
@@ -427,6 +435,10 @@ step_13_app() {
   run 13-ingress az containerapp ingress enable -g "$RG" -n "$CA" --type external --target-port 8000 \
     --transport auto -o none
   echo "URL: https://$(az containerapp show -g "$RG" -n "$CA" --query properties.configuration.ingress.fqdn -o tsv)" >&2
+}
+
+run_py() {  # like run(), but for our Python helpers (no --debug flag to append)
+  local name="$1"; shift; echo ">> $*" >&2; "$@" 2>&1 | tee -a "$LOG_DIR/$name.log"; return "${PIPESTATUS[0]}"
 }
 
 # ---- dispatch ---------------------------------------------------------------
