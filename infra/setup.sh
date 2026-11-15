@@ -111,6 +111,15 @@ step_2_monitoring() {
     --kind web --application-type web --workspace "$law_id" -o none
 }
 
+# Step 2b (design 04): Entra-only telemetry ingestion. With local auth on, anyone holding the
+# connection string (it embeds the instrumentation key) can write telemetry. With it off, the
+# exporter must send an Entra token (scope https://monitor.azure.com/.default) from a principal
+# with "Monitoring Metrics Publisher" on this component (step 8). ARM PATCH on the component.
+step_2b_appi_entra() {
+  run 02b-appi-entra az resource update -g "$RG" -n "$APPI" --resource-type Microsoft.Insights/components \
+    --set properties.DisableLocalAuth=true -o none
+}
+
 # Step 3: Key Vault in RBAC mode (data-plane access via Azure role assignments, not vault
 # access policies). Cost: ~$0.03 per 10k secret operations; no monthly fee for Standard.
 # Soft delete is always on: a deleted vault holds its name for retention-days (7 = the minimum).
@@ -187,6 +196,18 @@ step_7_search() {
     --auth-options aadOrApiKey --aad-auth-failure-mode http401WithBearerChallenge -o none
 }
 
+# Step 7b (design 04): index alias. The app queries `far-chunks`; a schema change builds
+# far-chunks-v2 and repoints this alias, with no app redeploy. NOT an ARM call: aliases are a
+# Search data-plane object (PUT {endpoint}/aliases/{name}), so the token is for
+# https://search.azure.com and the role is Search Service Contributor (me).
+SEARCH_ALIAS="far-chunks"; SEARCH_INDEX_VERSION="far-chunks-v1"
+step_7b_alias() {
+  run 07b-alias az rest --method put --resource https://search.azure.com \
+    --url "https://$SRCH.search.windows.net/aliases/$SEARCH_ALIAS?api-version=2026-10-01" \
+    --headers Content-Type=application/json \
+    --body "{\"name\": \"$SEARCH_ALIAS\", \"indexes\": [\"$SEARCH_INDEX_VERSION\"]}" -o none
+}
+
 # Step 8: role assignments (least privilege, scoped to each resource, not the RG). Free.
 # --assignee-object-id + --assignee-principal-type skips the Graph lookup, which avoids the
 # "principal not found" race right after an identity is created (Entra replication lag, step 5).
@@ -207,6 +228,7 @@ step_8_roles() {
   st="$(az storage account show -g "$RG" -n "$ST" --query id -o tsv)"
   ais="$(az cognitiveservices account show -g "$RG" -n "$AIS" --query id -o tsv)"
   srch="$(az search service show -g "$RG" -n "$SRCH" --query id -o tsv)"
+  local appi; appi="$(az monitor app-insights component show -g "$RG" -a "$APPI" --query id -o tsv)"
 
   # App identity: read-only on data, except what it must call.
   assign 08-roles-app "$app" ServicePrincipal "Key Vault Secrets User"          "$kv"
@@ -217,6 +239,8 @@ step_8_roles() {
   # actions (step 7 finding). /smoke's list_index_names → 403 for the MI without this.
   # Reader is read-only on the service and can't call listAdminKeys (a POST action).
   assign 08-roles-app "$app" ServicePrincipal "Reader"                          "$srch"
+  # Write telemetry with an Entra token (step 2b turns key-based ingestion off).
+  assign 08-roles-app "$app" ServicePrincipal "Monitoring Metrics Publisher"    "$appi"
   # AcrPull: added when the container registry is created.
 
   # Me (local dev + ingestion): write access to data, plus Search index management.
@@ -225,6 +249,7 @@ step_8_roles() {
   assign 08-roles-me "$me" User "Cognitive Services OpenAI User"  "$ais"
   assign 08-roles-me "$me" User "Search Index Data Contributor"   "$srch"
   assign 08-roles-me "$me" User "Search Service Contributor"      "$srch"
+  assign 08-roles-me "$me" User "Monitoring Metrics Publisher"    "$appi"
 }
 
 # Step 9: PostgreSQL Flexible Server: deferred (bills while idle). Added with the first SQL feature.
