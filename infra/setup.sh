@@ -493,6 +493,89 @@ step_13_app() {
   echo "URL: https://$(az containerapp show -g "$RG" -n "$CA" --query properties.configuration.ingress.fqdn -o tsv)" >&2
 }
 
+# Step 14 (design 12): CI identities for GitHub Actions. No secrets: OIDC federated credentials on two user-assigned
+# MIs ($0), each usable only by jobs in ONE GitHub environment of this repo.
+#   id-ci-eval-<sfx>    environment "eval":       runs evals in-process (LLM, Search, guardrails, Postgres copilot_ci)
+#   id-ci-deploy-<sfx>  environment "production": pushes images, updates the app, calls /smoke via app role, nightly ops
+# ARM: PUT Microsoft.ManagedIdentity/userAssignedIdentities/<name>[/federatedIdentityCredentials/<fic>];
+# role definition + assignments (Microsoft.Authorization); Graph: appRoles on the API app + appRoleAssignment.
+# Run by Aditya: identity/permission changes aren't made by the coding assistant.
+GH_REPO="${GH_REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)}"
+ID_CI_EVAL="id-ci-eval-$SFX"; ID_CI_DEPLOY="id-ci-deploy-$SFX"
+PG_POWER_ROLE="Copilot Postgres Power"
+SMOKE_ROLE_VALUE="Smoke.Run"; SMOKE_ROLE_ID="5e0a3c1e-6b1f-4c55-9d3a-7f2a0c5b9e12"   # fixed so re-runs are idempotent
+step_14_ci_identities() {
+  [[ -n "$GH_REPO" ]] || { echo "set GH_REPO=owner/name (gh not logged in?)" >&2; return 1; }
+  local rg_id; rg_id="$(az group show -n "$RG" --query id -o tsv)"
+  local name env oid
+  for pair in "$ID_CI_EVAL:eval" "$ID_CI_DEPLOY:production"; do
+    name="${pair%%:*}"; env="${pair##*:}"
+    az identity show -g "$RG" -n "$name" -o none 2>/dev/null \
+      || run 14-ci-id az identity create -g "$RG" -n "$name" -l "$LOCATION" -o none
+    az identity federated-credential show -g "$RG" --identity-name "$name" -n "github-$env" -o none 2>/dev/null \
+      || run 14-ci-fic az identity federated-credential create -g "$RG" --identity-name "$name" -n "github-$env" \
+           --issuer "https://token.actions.githubusercontent.com" \
+           --subject "repo:$GH_REPO:environment:$env" --audiences "api://AzureADTokenExchange" -o none
+  done
+
+  # Start/stop/read the Postgres server and nothing else (no built-in role is that narrow).
+  if [[ -z "$(az role definition list --custom-role-only true --name "$PG_POWER_ROLE" --query '[0].id' -o tsv)" ]]; then
+    local def; def="$(mktemp)"
+    cat > "$def" <<JSON
+{ "Name": "$PG_POWER_ROLE", "Description": "Start, stop and read the copilot PostgreSQL flexible server.",
+  "Actions": ["Microsoft.DBforPostgreSQL/flexibleServers/read",
+              "Microsoft.DBforPostgreSQL/flexibleServers/start/action",
+              "Microsoft.DBforPostgreSQL/flexibleServers/stop/action"],
+  "NotActions": [], "DataActions": [], "NotDataActions": [], "AssignableScopes": ["$rg_id"] }
+JSON
+    run 14-pg-power-role az role definition create --role-definition "@$def" -o none
+    rm -f "$def"
+  fi
+
+  local ais srch pg acr ca
+  ais="$(az cognitiveservices account show -g "$RG" -n "$AIS" --query id -o tsv)"
+  srch="$(az search service show -g "$RG" -n "$SRCH" --query id -o tsv)"
+  pg="$(az postgres flexible-server show -g "$RG" -n "$PG" --query id -o tsv)"
+  acr="$(az acr show -g "$RG" -n "$ACR" --query id -o tsv)"
+  ca="$(az containerapp show -g "$RG" -n "$CA" --query id -o tsv)"
+
+  oid="$(az identity show -g "$RG" -n "$ID_CI_EVAL" --query principalId -o tsv)"
+  assign 14-ci-roles "$oid" ServicePrincipal "Cognitive Services OpenAI User" "$ais"
+  assign 14-ci-roles "$oid" ServicePrincipal "$GUARD_ROLE" "$ais"
+  assign 14-ci-roles "$oid" ServicePrincipal "Search Index Data Reader" "$srch"
+  assign 14-ci-roles "$oid" ServicePrincipal "Reader" "$srch"            # index definitions are control plane (04)
+  assign 14-ci-roles "$oid" ServicePrincipal "$PG_POWER_ROLE" "$pg"
+
+  oid="$(az identity show -g "$RG" -n "$ID_CI_DEPLOY" --query principalId -o tsv)"
+  assign 14-ci-roles "$oid" ServicePrincipal "AcrPush" "$acr"
+  assign 14-ci-roles "$oid" ServicePrincipal "Reader" "$acr"             # az acr login resolves the registry via ARM (to verify; drop if unneeded)
+  assign 14-ci-roles "$oid" ServicePrincipal "Container Apps Contributor" "$ca"   # this one app, not the RG
+  assign 14-ci-roles "$oid" ServicePrincipal "$PG_POWER_ROLE" "$pg"
+
+  # App role Smoke.Run on the API registration (application permission → `roles` claim in app-only tokens),
+  # assigned to id-ci-deploy. /smoke accepts it; every other endpoint still needs the delegated user scope.
+  local app_id api_sp roles
+  app_id="$(az ad app list --display-name "$APPREG" --query '[0].appId' -o tsv)"
+  roles="$(az ad app show --id "$app_id" --query "appRoles[?value=='$SMOKE_ROLE_VALUE'].id" -o tsv)"
+  if [[ -z "$roles" ]]; then
+    run 14-app-role az ad app update --id "$app_id" --app-roles "[{\"allowedMemberTypes\": [\"Application\"],
+      \"description\": \"Call GET /smoke (post-deploy check).\", \"displayName\": \"Smoke.Run\", \"isEnabled\": true,
+      \"id\": \"$SMOKE_ROLE_ID\", \"value\": \"$SMOKE_ROLE_VALUE\"}]" -o none
+  fi
+  api_sp="$(az ad sp show --id "$app_id" --query id -o tsv)"
+  if [[ -z "$(az rest --method get --url "https://graph.microsoft.com/v1.0/servicePrincipals/$oid/appRoleAssignments" \
+        --query "value[?appRoleId=='$SMOKE_ROLE_ID'].id" -o tsv)" ]]; then
+    run 14-app-role-assign az rest --method post \
+      --url "https://graph.microsoft.com/v1.0/servicePrincipals/$oid/appRoleAssignments" \
+      --body "{\"principalId\": \"$oid\", \"resourceId\": \"$api_sp\", \"appRoleId\": \"$SMOKE_ROLE_ID\"}" -o none
+  fi
+
+  echo "GitHub secrets for environments 'eval' and 'production' (IDs, not credentials):" >&2
+  echo "  AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, and AZURE_CLIENT_ID =" >&2
+  echo "    eval:       $(az identity show -g "$RG" -n "$ID_CI_EVAL" --query clientId -o tsv)" >&2
+  echo "    production: $(az identity show -g "$RG" -n "$ID_CI_DEPLOY" --query clientId -o tsv)" >&2
+}
+
 run_py() {  # like run(), but for our Python helpers (no --debug flag to append)
   local name="$1"; shift; echo ">> $*" >&2; "$@" 2>&1 | tee -a "$LOG_DIR/$name.log"; return "${PIPESTATUS[0]}"
 }
