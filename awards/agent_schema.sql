@@ -32,3 +32,24 @@ COMMENT ON TABLE agent.review_items IS 'Competition-check findings awaiting or a
 GRANT USAGE ON SCHEMA agent TO copilot_agent;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA agent TO copilot_agent;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA agent TO copilot_agent;
+
+-- Design 10: append-only audit log. One row per /ask, /awards/query, /chat request. The question is stored only
+-- after PII masking. The app may INSERT and nothing else (privileges below, re-applied by awards.admin setup-agent
+-- after its schema-wide grant): it can't rewrite or delete history, or read it back.
+CREATE TABLE IF NOT EXISTS agent.audit_log (
+  id              bigserial PRIMARY KEY,
+  ts              timestamptz NOT NULL DEFAULT now(),
+  user_oid        text,
+  endpoint        text NOT NULL,
+  thread_id       text,
+  question_masked text,
+  status          text NOT NULL,
+  guardrails      jsonb NOT NULL DEFAULT '{}',
+  tools           text[] NOT NULL DEFAULT '{}',
+  sql             text[] NOT NULL DEFAULT '{}',
+  sources         text[] NOT NULL DEFAULT '{}',
+  review_ids      bigint[] NOT NULL DEFAULT '{}',
+  trace_id        text
+);
+CREATE INDEX IF NOT EXISTS audit_log_ts ON agent.audit_log (ts);
+COMMENT ON TABLE agent.audit_log IS 'Append-only request audit (design 10). App role: INSERT only.';

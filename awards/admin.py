@@ -64,16 +64,52 @@ def setup_agent(principal: str) -> None:
         conn.autocommit = True
         conn.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA agent TO copilot_agent")
         conn.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA agent TO copilot_agent")
+        conn.execute(AUDIT_PRIVILEGES)   # after the schema-wide grant above, or it would hand back UPDATE/DELETE
         conn.execute(sql.SQL("GRANT copilot_agent TO {}").format(sql.Identifier(principal)))
         tables = [r[0] for r in conn.execute(
             "SELECT tablename FROM pg_tables WHERE schemaname = 'agent' ORDER BY 1").fetchall()]
         member = conn.execute("SELECT pg_has_role(%s, 'copilot_agent', 'member'), "
                               "has_table_privilege(%s, 'public.awards', 'INSERT')", (principal, principal)).fetchone()
         print(f"agent tables={tables}; {principal}: copilot_agent={member[0]} can_insert_awards={member[1]}")
+        audit = conn.execute("SELECT " + ", ".join(
+            f"has_table_privilege(%s, 'agent.audit_log', '{p}')" for p in ("INSERT", "SELECT", "UPDATE", "DELETE")),
+            (principal,) * 4).fetchone()
+        print(f"audit_log for {principal}: INSERT={audit[0]} SELECT={audit[1]} UPDATE={audit[2]} DELETE={audit[3]}")
+
+
+# Design 10: the app can append to the audit log and do nothing else with it.
+AUDIT_PRIVILEGES = """REVOKE ALL ON agent.audit_log FROM copilot_agent;
+GRANT INSERT ON agent.audit_log TO copilot_agent;"""
+
+# LangGraph checkpoint tables are keyed by thread_id; only `checkpoint->>'ts'` carries time. A thread is purged
+# when its NEWEST checkpoint is older than the retention window (so active conversations keep their history).
+PURGE_SQL = """
+CREATE TEMP TABLE old_threads ON COMMIT DROP AS
+  SELECT thread_id FROM agent.checkpoints GROUP BY thread_id
+  HAVING max((checkpoint->>'ts')::timestamptz) < now() - make_interval(days => %(days)s);
+DELETE FROM agent.checkpoint_writes WHERE thread_id IN (SELECT thread_id FROM old_threads);
+DELETE FROM agent.checkpoint_blobs  WHERE thread_id IN (SELECT thread_id FROM old_threads);
+DELETE FROM agent.checkpoints       WHERE thread_id IN (SELECT thread_id FROM old_threads);
+"""
+
+
+def purge_memory(days: str) -> None:
+    """Design 10: delete conversation memory older than N days. Runs as the Entra admin (setup.sh 9f);
+    scheduled with CI in 12. The audit log is NOT purged: it keeps the masked record of what happened."""
+    settings = get_settings()
+    with connect_as_me(settings, DefaultAzureCredential()) as conn:
+        with conn.transaction():
+            first, *rest = [q.strip() for q in PURGE_SQL.split(";") if q.strip()]
+            conn.execute(first, {"days": int(days)})   # parameters force one statement per execute
+            for q in rest:
+                conn.execute(q)
+            n = conn.execute("SELECT count(*) FROM old_threads").fetchone()[0]
+        left = conn.execute("SELECT count(DISTINCT thread_id) FROM agent.checkpoints").fetchone()[0]
+        print(f"purged {n} thread(s) older than {days} days; {left} thread(s) kept")
 
 
 if __name__ == "__main__":
-    commands = {"grant-app": grant_app, "setup-agent": setup_agent}
+    commands = {"grant-app": grant_app, "setup-agent": setup_agent, "purge-memory": purge_memory}
     if len(sys.argv) != 3 or sys.argv[1] not in commands:
-        sys.exit("usage: python -m awards.admin {grant-app|setup-agent} <managed-identity-name>")
+        sys.exit("usage: python -m awards.admin {grant-app|setup-agent <managed-identity-name> | purge-memory <days>}")
     commands[sys.argv[1]](sys.argv[2])

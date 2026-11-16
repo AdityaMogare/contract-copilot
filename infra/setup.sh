@@ -337,6 +337,13 @@ step_9c_pg_app() {
 step_9d_pg_agent() {
   run_py 09d-pg-agent uv run python -m awards.admin setup-agent "$ID_APP"
 }
+# Design 10: re-running 9d also creates agent.audit_log and makes it INSERT-only for the app (idempotent).
+
+# Step 9f (design 10): delete conversation memory (LangGraph checkpoints) older than 30 days, as the Entra admin.
+# Manual for now; scheduled with CI in design 12. The audit log is kept.
+step_9f_purge_memory() {
+  run_py 09f-purge uv run python -m awards.admin purge-memory "${MEMORY_RETENTION_DAYS:-30}"
+}
 
 # Step 9z: stop Postgres to stop compute billing (storage still bills). Start again with 9y.
 step_9z_pg_stop()  { run 09z-pg-stop  az postgres flexible-server stop  -g "$RG" -n "$PG" -o none; }
