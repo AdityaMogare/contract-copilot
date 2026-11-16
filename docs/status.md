@@ -16,6 +16,7 @@ Update at the end of every session: what changed, what's next, any decision and 
 - [x] Public repo: https://github.com/AdityaMogare/contract-copilot
 - [x] Text-to-SQL (design 07): `POST /awards/query` live; SQL eval 54/60 runs correct (low effort), 15/15 not-answerable, 18/18 adversarial safe
 - [x] Agent (design 08): `POST /chat` with memory, rule-based competition check, human review queue; agent eval 32/34 (low), 0 invented PIIDs, 0 verdicts
+- [x] Guardrails (design 10): prompt shields (direct + indirect), PII masking, INSERT-only audit log, 30-day memory purge, fail closed; live on `104de76`. Eval: shield 21/45 attack runs, 0/76 false positives; PII 10/10; the 6 never-caught attacks were stopped by other layers live
 
 ## Decisions
 | Date | Decision | Why |
@@ -47,6 +48,10 @@ Update at the end of every session: what changed, what's next, any decision and 
 | 2026-11-15 | One tool-calling agent with call (6) and time (30 s) budgets + forced final step | Probe: loops, empty answers at the cap; a 6-call turn hit the 45 s deadline |
 | 2026-11-15 | Memory + review queue in schema `agent`, second pool, same MI | Privileges keep award data unwritable; a second identity is the production answer |
 | 2026-11-15 | Agent answers directly from its last call (direct-final); `chat` 150K TPM | p50 −3.1 s on two eval runs; 429s at 50K TPM once turns got faster; capacity is free |
+| 2026-11-15 | Guardrails on the existing AI Services account, custom role with 3 data actions | No new resource; the only built-in role grants all data actions + listkeys |
+| 2026-11-15 | Guardrails fail closed; audit writes best-effort | Guardrails protect the LLM and the review queue; the audit log is evidence after the fact and shouldn't be an availability risk |
+| 2026-11-15 | Mask contact/ID PII, keep names; DFARS clause numbers exempt from phone masking | Names are question subjects and public record; measured clause numbers flagged as phones (0.65) |
+| 2026-11-15 | Shield = first filter, not the boundary | Measured 21/45 attack runs; the never-caught ones were stopped live by tool design, SQL privileges, citation rules |
 
 ## Next session
 - 00-infra still open (deferred by choice, 2026-11-14): own-words Observed column, 30-second explanation, break-it drill, 3 quiz answers
@@ -58,4 +63,5 @@ Update at the end of every session: what changed, what's next, any decision and 
 - 06 open: quiz; drill "remove the MI principal"; decide whether to add FY2024
 - 07 open: SQL prompt tuning needs a held-out SQL set first (NULL handling, total-vs-breakdown); quiz
 - 08 open: Postgres stop/resume drill; quiz. Done since: content filter → `blocked` on all endpoints; direct-final (p50 11.75 → ~8.6 s); chat 150K TPM
-- Next: 10 guardrails (Content Safety prompt shields, PII masking, audit log) or 12 CI/CD eval gate
+- 10 open: quiz; optional live drill "remove the guardrails role" (IAM, Aditya runs); alert on `audit.failed` (with 11/12)
+- Next: 12 CI/CD eval gate (+ nightly Postgres stop and `setup.sh 9f` purge)
