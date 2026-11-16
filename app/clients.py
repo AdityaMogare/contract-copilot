@@ -7,6 +7,8 @@ call in Azure) on every request, and leak HTTP sessions.
 
 from dataclasses import dataclass
 
+import httpx
+
 from azure.identity.aio import DefaultAzureCredential, get_bearer_token_provider
 from azure.keyvault.secrets.aio import SecretClient
 from azure.search.documents.aio import SearchClient
@@ -34,6 +36,7 @@ class Clients:
     pg: object | None = None      # AsyncConnectionPool (design 06); None if Postgres isn't configured
     token_provider: object | None = None  # async bearer provider for the cognitiveservices scope (agent LLM)
     pg_agent: object | None = None  # design 08: schema agent, read-write; LangGraph needs autocommit + dict rows
+    http: httpx.AsyncClient | None = None  # design 10: Content Safety + Language REST calls (no SDK needed)
 
 
 def build_clients(settings: Settings) -> Clients:
@@ -44,6 +47,7 @@ def build_clients(settings: Settings) -> Clients:
     return Clients(
         credential=credential,
         token_provider=token_provider,
+        http=httpx.AsyncClient(timeout=settings.guard_timeout_s),
         pg=make_pool(settings, credential),
         pg_agent=make_pool(settings, credential, AGENT_OPTS, {"autocommit": True, "row_factory": dict_row}),
         openai=AsyncAzureOpenAI(
@@ -68,6 +72,8 @@ def build_clients(settings: Settings) -> Clients:
 
 async def close_clients(clients: Clients) -> None:
     await clients.openai.close()
+    if clients.http is not None:
+        await clients.http.aclose()
     await clients.search.close()
     await clients.docs.close()
     await clients.openai_rag.close()

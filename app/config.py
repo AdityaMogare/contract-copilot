@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     rag_deadline_s: float = 25.0
     max_question_chars: int = 1000
 
+    # Guardrails (design 10): Content Safety prompt shields + Language PII on the same AI Services account.
+    # Fail closed: if a guardrail can't run, the request is refused (503 content_safety). Tests turn it off.
+    guardrails_enabled: bool = True
+    guard_timeout_s: float = 3.0
+    content_safety_api_version: str = "2024-09-01"
+    language_api_version: str = "2024-11-01"
+    memory_retention_days: int = 30
+
     # Not a secret once App Insights local auth is off (infra step 2b): ingestion needs an Entra token.
     applicationinsights_connection_string: str | None = None
 

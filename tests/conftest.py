@@ -14,6 +14,7 @@ FAKE_ENV = {
     "KEY_VAULT_URL": "https://fake-kv.example.com/",
     "STORAGE_ACCOUNT_URL": "https://fake-st.example.com",
     "SMOKE_TIMEOUT_S": "0.2",
+    "GUARDRAILS_ENABLED": "false",  # tests/test_guardrails.py turns it on with faked shield/PII calls
     "AUTH_REQUIRED": "false",  # auth is fail-closed by default; tests/test_auth.py turns it on
 }
 
