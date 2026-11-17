@@ -62,6 +62,7 @@ cp .env.example .env        # fill in endpoints; no keys needed
 az login
 uv run pytest
 uv run uvicorn app.main:app --reload
+curl localhost:8000/health   # -> {"status":"ok"} (public liveness probe, no sign-in)
 ```
 Infrastructure is reproducible from [`infra/setup.sh`](infra/setup.sh) (one numbered step at a time,
 `DEBUG=1` logs every ARM call), deploys from [`infra/deploy.sh`](infra/deploy.sh) (image tag = git SHA).

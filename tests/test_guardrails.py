@@ -65,7 +65,7 @@ def _settings(**kw):
     from app.config import Settings
     base = dict(azure_openai_endpoint="https://ais.example.com/", search_endpoint="https://s.example.com",
                 key_vault_url="https://kv.example.com/", storage_account_url="https://st.example.com",
-                guardrails_enabled=True)
+                guardrails_enabled=True, auth_required=False)
     return Settings(**{**base, **kw})
 
 
